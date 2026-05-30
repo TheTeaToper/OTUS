@@ -1,4 +1,4 @@
-module hw01_hello_otus
+module github.com/TheTeaToper/OTUS/hw01_hello_otus
 
 go 1.23
 
