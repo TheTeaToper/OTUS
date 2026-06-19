@@ -13,7 +13,7 @@ type word struct {
 	Counter int
 }
 
-var regEx, _ = regexp.Compile(`[\pL-]+`)
+var regEx = regexp.MustCompile(`[\pL-]+`)
 
 func Top10(inputText string) []string {
 	matches := regEx.FindAllStringSubmatch(inputText, -1)
