@@ -50,8 +50,8 @@ linters:
       rules:
         Main:
           files:
-            - $all
-            - '!**/*_test.go'
+            - "**/*.go"
+            - "!**/*_test.go"
           allow:
             - $gostd
         Test:
