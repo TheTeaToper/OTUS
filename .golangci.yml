@@ -1,5 +1,4 @@
 run:
-  version: "1.63"
   build-tags:
     - bench
     - ""
@@ -46,7 +45,6 @@ linters:
     - unparam
     - unused
     - whitespace
-    # Форматировщики из старой секции formatters теперь включаются здесь:
     - gci
     - gofmt
     - gofumpt
@@ -65,28 +63,25 @@ linters-settings:
           - $test
         allow:
           - $gostd
-          - github.com/stretchr/testify
+          - ://github.com
   funlen:
     lines: 150
     statements: 80
 
 issues:
-  # Настройки пресетов исключений
   exclude-use-default: false
-  exclude-presets:
-    - comments
-    - common-false-positives
-    - legacy
-    - std-error-handling
-
-  # Исключения по путям (комбинация старых exclusions и formatters.exclusions)
   exclude-dirs:
     - third_party$
     - builtin$
     - examples$
-
-  # Правила исключений для конкретных файлов (замена старого rules)
   exclude-rules:
+    # Исключения по пресетам перенесены в стандартные правила
+    - presets:
+        - comments
+        - common-false-positives
+        - legacy
+        - std-error-handling
+    # Ваше старое правило для тестовых файлов
     - path: _test\.go
       linters:
         - dupl
