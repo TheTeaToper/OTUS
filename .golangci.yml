@@ -70,17 +70,21 @@ linters-settings:
 
 issues:
   exclude-use-default: false
+  
+  # Правильное расположение пресетов в современной схеме v2
+  exclude-presets:
+    - comments
+    - common-false-positives
+    - legacy
+    - std-error-handling
+
   exclude-dirs:
     - third_party$
     - builtin$
     - examples$
+
   exclude-rules:
-    # Исключения по пресетам перенесены в стандартные правила
-    - preset: comments
-    - preset: common-false-positives
-    - preset: legacy
-    - preset: std-error-handling
-    # Ваше старое правило для тестовых файлов
+    # Ваше правило для тестовых файлов (без ошибочных полей)
     - path: _test\.go
       linters:
         - dupl
