@@ -1,11 +1,12 @@
-version: "2"
 run:
+  version: "1.63"
   build-tags:
     - bench
     - ""
   tests: true
+
 linters:
-  default: none
+  disable-all: true
   enable:
     - asciicheck
     - bodyclose
@@ -45,50 +46,50 @@ linters:
     - unparam
     - unused
     - whitespace
-  settings:
-    depguard:
-      rules:
-        Main:
-          files:
-            - $all
-            - '!$test'
-          allow:
-            - $gostd
-        Test:
-          files:
-            - $test
-          allow:
-            - $gostd
-            - github.com/stretchr/testify
-    funlen:
-      lines: 150
-      statements: 80
-  exclusions:
-    generated: lax
-    presets:
-      - comments
-      - common-false-positives
-      - legacy
-      - std-error-handling
-    rules:
-      - linters:
-          - dupl
-          - errcheck
-          - gocyclo
-          - gosec
-        path: _test\.go
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
-formatters:
-  enable:
+    # Форматировщики из старой секции formatters теперь включаются здесь:
     - gci
     - gofmt
     - gofumpt
-  exclusions:
-    generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+
+linters-settings:
+  depguard:
+    rules:
+      Main:
+        files:
+          - $all
+          - '!$test'
+        allow:
+          - $gostd
+      Test:
+        files:
+          - $test
+        allow:
+          - $gostd
+          - github.com/stretchr/testify
+  funlen:
+    lines: 150
+    statements: 80
+
+issues:
+  # Настройки пресетов исключений
+  exclude-use-default: false
+  exclude-presets:
+    - comments
+    - common-false-positives
+    - legacy
+    - std-error-handling
+
+  # Исключения по путям (комбинация старых exclusions и formatters.exclusions)
+  exclude-dirs:
+    - third_party$
+    - builtin$
+    - examples$
+
+  # Правила исключений для конкретных файлов (замена старого rules)
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - errcheck
+        - gocyclo
+        - gosec
