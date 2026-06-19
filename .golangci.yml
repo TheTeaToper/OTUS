@@ -88,6 +88,8 @@ issues:
       text: "exported (.+) should have comment"
     - linters: [revive]
       text: "package comment should be of the form"
+    - linters: [revive]
+      text: "package-comments:"
     - linters: [staticcheck]
       text: "(ST1000|ST1020|ST1021|ST1022)"
     - linters: [gosec]
