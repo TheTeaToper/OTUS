@@ -76,11 +76,10 @@ issues:
     - examples$
   exclude-rules:
     # Исключения по пресетам перенесены в стандартные правила
-    - presets:
-        - comments
-        - common-false-positives
-        - legacy
-        - std-error-handling
+    - preset: comments
+    - preset: common-false-positives
+    - preset: legacy
+    - preset: std-error-handling
     # Ваше старое правило для тестовых файлов
     - path: _test\.go
       linters:
