@@ -51,12 +51,12 @@ linters:
         Main:
           files:
             - $all
-            - '!$test'
+            - '!**/*_test.go'
           allow:
             - $gostd
         Test:
           files:
-            - $test
+            - "!**/*_test.go"
           allow:
             - $gostd
             - github.com/stretchr/testify
