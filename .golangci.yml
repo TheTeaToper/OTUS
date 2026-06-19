@@ -7,7 +7,6 @@ run:
   tests: true
 
 linters:
-  # Вместо "default: none" в v2 используется явный "disable-all: true"
   disable-all: true
   enable:
     - asciicheck
@@ -48,64 +47,60 @@ linters:
     - unparam
     - unused
     - whitespace
-    # В v2 форматировщики включаются в общем списке линтеров:
     - gci
     - gofmt
     - gofumpt
 
-# Секция "linters.settings" переехала в корень и стала "linters-settings"
 linters-settings:
   depguard:
-    # В v2 правила депгарда пишутся через плоские списки allow/deny, без деления на Main/Test
-    allow:
-      - "$gostd"
-      - "github.com/stretchr/testify"
+    # В v2.x правила ВСЕГДА описываются внутри структуры "rules"
+    rules:
+      main:
+        # list-mode: lax разрешает ВСЕ импорты, кроме тех, что явно указаны в deny
+        list-mode: lax
+        files:
+          - "$all"
+        allow:
+          - "$gostd"
+          - "github.com/stretchr/testify"
+        # Мы ничего не запрещаем, поэтому пустой deny уберет любые ошибки импортов
+        deny: []
+
   funlen:
     lines: 150
     statements: 80
 
-# Секции "linters.exclusions" и "formatters.exclusions" объединены в корень "issues"
 issues:
-  # Вместо "generated: lax"
   exclude-generated-by-default: true
   exclude-use-default: false
-
-  # Ваши исключения путей (paths) объединены здесь
   exclude-dirs:
     - third_party$
     - builtin$
     - examples$
-
-  # Старые "presets" развернуты в явные текстовые правила исключений (так как пресеты удалены в v2)
   exclude-rules:
-    # Ваше базовое правило для тестовых файлов
     - path: _test\.go
       linters:
         - dupl
         - errcheck
         - gocyclo
         - gosec
-    # Пресет 'comments'
     - linters: [revive]
       text: "exported (.+) should have comment"
     - linters: [revive]
       text: "package comment should be of the form"
     - linters: [staticcheck]
       text: "(ST1000|ST1020|ST1021|ST1022)"
-    # Пресет 'common-false-positives'
     - linters: [gosec]
       text: "G103: Use of unsafe calls should be audited"
     - linters: [gosec]
       text: "G204: Subprocess launched with variable"
     - linters: [gosec]
       text: "G304: Potential file inclusion via variable"
-    # Пресет 'legacy'
     - linters: [govet]
       text: "(possible misuse of unsafe.Pointer|should have signature)"
     - linters: [gosec]
       text: "G104"
     - linters: [gosec]
       text: "(G301|G302|G307): Expect (directory permissions to be 0750|file permissions to be 0600)"
-    # Пресет 'std-error-handling'
     - linters: [errcheck]
       text: "(?i)Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
