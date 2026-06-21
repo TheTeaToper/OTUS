@@ -47,7 +47,31 @@ func TestTop10(t *testing.T) {
 	t.Run("no words in empty string", func(t *testing.T) {
 		require.Len(t, Top10(""), 0)
 	})
-
+	t.Run("no words in non-empty string", func(t *testing.T) {
+		require.Len(t, Top10("@ . # !!! ? (*)"), 0)
+	})
+	t.Run("case insensitive test", func(t *testing.T) {
+		expected := []string{
+			"регистронезависимость",
+			"на",
+			"проверяется",
+			"тест",
+			"тестом",
+			"этим",
+		}
+		require.Equal(t, expected, Top10("тест на регистронезависимость. Регистронезависимость проверяется этим тестом"))
+	})
+	t.Run("words with dash test", func(t *testing.T) {
+		expected := []string{
+			"кое-как",
+			"домашкой",
+			"запилил",
+			"с",
+			"справился",
+			"тест",
+		}
+		require.Equal(t, expected, Top10("Кое-как справился с домашкой - кое-как запилил тест"))
+	})
 	t.Run("positive test", func(t *testing.T) {
 		if taskWithAsteriskIsCompleted {
 			expected := []string{
