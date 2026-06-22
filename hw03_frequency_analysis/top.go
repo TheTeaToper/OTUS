@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/dlclark/regexp2/v2"
+	"github.com/dlclark/regexp2"
 )
 
 type word struct {
