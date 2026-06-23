@@ -48,10 +48,10 @@ linters:
   settings:
     depguard:
       rules:
-        main:
+        Main:
           files:
-            - $all
-            - '!$test'
+            - "**/*.go"
+            - "!**/*_test.go"
           allow:
             - $gostd
             - github.com/dlclark/regexp2
