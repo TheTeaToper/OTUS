@@ -4,12 +4,12 @@ import (
 	"cmp"
 	"fmt"
 	"log"
-
-	//"regexp"
 	"slices"
 	"strings"
 
 	"github.com/dlclark/regexp2"
+	// github.com/dlclark/regexp2/syntax требуется для активации расширенных таблиц Unicode (Emoji_Presentation).
+	_ "github.com/dlclark/regexp2/syntax"
 )
 
 type word struct {
