@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"github.com/dlclark/regexp2"
-	// github.com/dlclark/regexp2/syntax требуется для активации расширенных таблиц Unicode (Emoji_Presentation).
-	_ "github.com/dlclark/regexp2/syntax"
 )
 
 type word struct {
@@ -17,7 +15,7 @@ type word struct {
 	Counter int
 }
 
-var regEx = regexp2.MustCompile(`[\pL\p{Emoji_Presentation}-]+`, 0)
+var regEx = regexp2.MustCompile(`[\pL\x{1F600}-\x{1F64F}\x{1F300}-\x{1F5FF}\x{1F680}-\x{1F6FF}\x{2600}-\x{26FF}-]+`, 0)
 
 func Top10(inputText string) []string {
 	matches, err := FindAllMatches(regEx, inputText)
