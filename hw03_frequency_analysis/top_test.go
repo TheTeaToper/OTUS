@@ -74,7 +74,7 @@ func TestTop10(t *testing.T) {
 	})
 	t.Run("emoji test", func(t *testing.T) {
 		expected := []string{
-			"🏴",
+			"🏴‍☠️",
 			"британский",
 			"в",
 			"веселый",
