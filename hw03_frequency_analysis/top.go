@@ -17,7 +17,7 @@ type word struct {
 	Counter int
 }
 
-var regEx = regexp2.MustCompile(`[\pL\p{Emoji_Presentation}-]+`)
+var regEx = regexp2.MustCompile(`[\pL\p{Emoji_Presentation}-]+`, 0)
 
 func Top10(inputText string) []string {
 	matches, err := FindAllMatches(regEx, inputText)
