@@ -45,7 +45,9 @@ func TestCache(t *testing.T) {
 		require.False(t, ok)
 		require.Nil(t, val)
 	})
+}
 
+func TestCacheCapacity(t *testing.T) {
 	t.Run("Проверка переполнения кэша", func(t *testing.T) {
 		cache := NewCache(4)
 		cache.Set("1", "Меркурий")
