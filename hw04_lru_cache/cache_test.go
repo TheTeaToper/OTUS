@@ -49,8 +49,30 @@ func TestCache(t *testing.T) {
 		require.Nil(t, val)
 	})
 
-	t.Run("purge logic", func(t *testing.T) {
-		// Write me
+	t.Run("Проверка переполнения кэша", func(t *testing.T) {
+		cache := NewCache(4)
+		cache.Set("1", "Меркурий")
+		cache.Set("2", "Венера")
+		cache.Set("3", "Земля")
+		cache.Set("4", "Марс")
+		cache.Set("5", "Уран")
+		if _, mercuryFound := cache.Get("1"); mercuryFound {
+			t.Error("Меркурий должен быть удален из кэша")
+		}
+	})
+
+	t.Run("Проверка очистки кэша", func(t *testing.T) {
+		cache := NewCache(3)
+		cache.Set("One", 1)
+		cache.Set("Two", 2)
+		cache.Set("Three", 3)
+		cache.Clear()
+		_, firstFound := cache.Get("One")
+		require.False(t, firstFound)
+		_, secondFound := cache.Get("Two")
+		require.False(t, secondFound)
+		_, thirdFound := cache.Get("Three")
+		require.False(t, thirdFound)
 	})
 }
 

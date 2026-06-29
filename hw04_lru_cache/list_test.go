@@ -48,4 +48,33 @@ func TestList(t *testing.T) {
 		}
 		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
 	})
+
+	t.Run("Проверка порядка элементов", func(t *testing.T) {
+		l := NewList()
+		l.PushBack("Второй")
+		l.PushFront("Первый")
+		l.PushBack("Третий")
+		require.Equal(t, 3, l.Len())
+		require.Nil(t, l.Front().Prev)
+		require.Equal(t, "Первый", l.Front().Value)
+		require.Equal(t, "Второй", l.Front().Next.Value)
+		require.Equal(t, "Третий", l.Back().Value)
+		require.Nil(t, l.Back().Next)
+	})
+
+	t.Run("Проверка удаления", func(t *testing.T) {
+		l := NewList()
+		firstItem := l.PushFront("Первый")
+		secondItem := l.PushBack("Второй")
+		l.PushBack("Третий")
+		l.Remove(l.Back())
+		if l.Back() != secondItem {
+			t.Error("Последним должен быть второй элемент")
+		}
+		l.Remove(firstItem)
+		if l.Front() != secondItem {
+			t.Error("Первым должен быть второй элемент")
+		}
+		require.Equal(t, 1, l.Len())
+	})
 }
