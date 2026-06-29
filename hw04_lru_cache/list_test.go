@@ -48,7 +48,9 @@ func TestList(t *testing.T) {
 		}
 		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
 	})
+}
 
+func TestListOrder(t *testing.T) {
 	t.Run("Проверка порядка элементов", func(t *testing.T) {
 		l := NewList()
 		l.PushBack("Второй")
@@ -61,7 +63,9 @@ func TestList(t *testing.T) {
 		require.Equal(t, "Третий", l.Back().Value)
 		require.Nil(t, l.Back().Next)
 	})
+}
 
+func TestListCleaning(t *testing.T) {
 	t.Run("Проверка удаления", func(t *testing.T) {
 		l := NewList()
 		firstItem := l.PushFront("Первый")
