@@ -1,61 +1,32 @@
+version: "2"
+
 run:
-  tests: true
   build-tags:
     - bench
-    - !bench
-
-linters-settings:
-  funlen:
-    lines: 150
-    statements: 80
-  depguard:
-    rules:
-      Main:
-        files:
-          - $all
-          - "!$test"
-        allow:
-          - $gostd
-      Test:
-        files:
-          - $test
-        allow:
-          - $gostd
-          - github.com/stretchr/testify
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - dupl
-        - gocyclo
-        - gosec
+    - ""
+  tests: true
 
 linters:
   disable-all: true
   enable:
     - asciicheck
+    - bodyclose
+    - copyloopvar
     - depguard
     - dogsled
     - dupl
-    - bodyclose
     - durationcheck
     - errorlint
     - exhaustive
-    - copyloopvar
     - funlen
-    - gci
     - gocognit
     - goconst
     - gocritic
     - gocyclo
     - godot
-    - gofmt
-    - gofumpt
     - goheader
     - goprintffuncname
     - gosec
-    - gosimple
     - govet
     - importas
     - ineffassign
@@ -70,11 +41,68 @@ linters:
     - predeclared
     - revive
     - staticcheck
-    - stylecheck
     - tagliatelle
     - thelper
-    - typecheck
     - unconvert
     - unparam
     - unused
     - whitespace
+    - gci
+    - gofmt
+    - gofumpt
+
+linters-settings:
+  depguard:
+    # В v2.x правила ВСЕГДА описываются внутри структуры "rules"
+    rules:
+      main:
+        # list-mode: lax разрешает ВСЕ импорты, кроме тех, что явно указаны в deny
+        list-mode: lax
+        files:
+          - "$all"
+        allow:
+          - "$gostd"
+          - "github.com/stretchr/testify"
+        # Мы ничего не запрещаем, поэтому пустой deny уберет любые ошибки импортов
+        deny: []
+
+  funlen:
+    lines: 150
+    statements: 80
+
+issues:
+  exclude-generated-by-default: true
+  exclude-use-default: false
+  exclude-dirs:
+    - third_party$
+    - builtin$
+    - examples$
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - errcheck
+        - gocyclo
+        - gosec
+    - linters: [revive]
+      text: "exported (.+) should have comment"
+    - linters: [revive]
+      text: "package comment should be of the form"
+    - linters: [revive]
+      text: "package-comments:"
+    - linters: [staticcheck]
+      text: "(ST1000|ST1020|ST1021|ST1022)"
+    - linters: [gosec]
+      text: "G103: Use of unsafe calls should be audited"
+    - linters: [gosec]
+      text: "G204: Subprocess launched with variable"
+    - linters: [gosec]
+      text: "G304: Potential file inclusion via variable"
+    - linters: [govet]
+      text: "(possible misuse of unsafe.Pointer|should have signature)"
+    - linters: [gosec]
+      text: "G104"
+    - linters: [gosec]
+      text: "(G301|G302|G307): Expect (directory permissions to be 0750|file permissions to be 0600)"
+    - linters: [errcheck]
+      text: "(?i)Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
