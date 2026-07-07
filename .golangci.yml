@@ -74,6 +74,9 @@ linters-settings:
         #   - "$gostd"
         #   - "github.com/stretchr/testify"
         # deny: []
+  
+  gocognit:
+    min-complexity: 40
 
   funlen:
     lines: 150

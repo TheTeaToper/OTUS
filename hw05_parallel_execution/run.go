@@ -46,13 +46,14 @@ func Run(tasks []Task, n, m int) error {
 					}
 
 					err := taskForExecution()
-					if err == nil || m <= 0 {
-						return
-					}
-					currentErrorsCount := atomic.AddInt32(&totalErrorsCount, 1)
-					if currentErrorsCount >= int32(m) {
-						cancelExecution()
-						return
+					if err != nil {
+						if m > 0 {
+							currentErrorsCount := atomic.AddInt32(&totalErrorsCount, 1)
+							if currentErrorsCount >= int32(m) {
+								cancelExecution()
+								return
+							}
+						}
 					}
 				}
 			}
