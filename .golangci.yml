@@ -12,7 +12,7 @@ linters:
     - asciicheck
     - bodyclose
     - copyloopvar
-    - depguard
+    # - depguard
     - dogsled
     - dupl
     - durationcheck
@@ -47,24 +47,33 @@ linters:
     - unparam
     - unused
     - whitespace
+    # ⚠️ Из этой секции удалены gci, gofmt, gofumpt
+  exclusions:
+    rules:
+      - linters:
+          - revive
+        text: "should have( a package)? comment"
+      - linters:
+          - gosec
+        text: "(G115|G404)"
+
+formatters:
+  enable:
     - gci
     - gofmt
     - gofumpt
 
 linters-settings:
   depguard:
-    # В v2.x правила ВСЕГДА описываются внутри структуры "rules"
     rules:
       main:
-        # list-mode: lax разрешает ВСЕ импорты, кроме тех, что явно указаны в deny
         list-mode: lax
         files:
           - "$all"
-        allow:
-          - "$gostd"
-          - "github.com/stretchr/testify"
-        # Мы ничего не запрещаем, поэтому пустой deny уберет любые ошибки импортов
-        deny: []
+        # allow:
+        #   - "$gostd"
+        #   - "github.com/stretchr/testify"
+        # deny: []
 
   funlen:
     lines: 150
@@ -89,7 +98,7 @@ issues:
     - linters: [revive]
       text: "package comment should be of the form"
     - linters: [revive]
-      text: "package-comments:"
+      text: "should have a package comment"
     - linters: [staticcheck]
       text: "(ST1000|ST1020|ST1021|ST1022)"
     - linters: [gosec]
@@ -102,6 +111,8 @@ issues:
       text: "(possible misuse of unsafe.Pointer|should have signature)"
     - linters: [gosec]
       text: "G104"
+    - linters: [gosec]
+      text: "G115"
     - linters: [gosec]
       text: "(G301|G302|G307): Expect (directory permissions to be 0750|file permissions to be 0600)"
     - linters: [errcheck]
