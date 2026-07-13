@@ -145,6 +145,70 @@ func TestAllStageStop(t *testing.T) {
 		wg.Wait()
 
 		require.Len(t, result, 0)
+	})
+}
 
+func passthroughStage(in In) Out {
+	out := make(Bi)
+	go func() {
+		defer close(out)
+		for val := range in {
+			out <- val
+		}
+	}()
+	return out
+}
+
+func TestBoundaryConditions(t *testing.T) {
+	t.Run("Empty stages slice", func(t *testing.T) {
+		in := make(Bi)
+		done := make(Bi)
+
+		// Должен просто вернуть исходный канал
+		out := ExecutePipeline(in, done)
+
+		if out != in {
+			t.Error("функция должна вернуть исходный канал 'in'")
+		}
+	})
+
+	t.Run("Contains nil stages", func(t *testing.T) {
+		in := make(Bi)
+		done := make(Bi)
+
+		out := ExecutePipeline(in, done, passthroughStage, nil, passthroughStage)
+
+		go func() {
+			in <- "test"
+			close(in)
+		}()
+
+		select {
+		case val, ok := <-out:
+			if !ok || val != "test" {
+				t.Errorf("пайплайн поврежден nil-стадией. Получено: %v", val)
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("Таймаут: пайплайн завис из-за nil-стадии")
+		}
+	})
+
+	// Сценарий 3: Входной канал закрывается сразу (нет данных)
+	t.Run("Immediate close of input channel", func(t *testing.T) {
+		in := make(Bi)
+		done := make(Bi)
+
+		out := ExecutePipeline(in, done, passthroughStage, passthroughStage)
+
+		close(in)
+
+		select {
+		case _, ok := <-out:
+			if ok {
+				t.Error("Финальный канал должен закрыться пустым")
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("Таймаут: пайплайн завис при мгновенном закрытии входа")
+		}
 	})
 }
