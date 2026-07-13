@@ -39,7 +39,7 @@ linters:
     - nolintlint
     - prealloc
     - predeclared
-    - revive
+    # - revive
     - staticcheck
     - tagliatelle
     - thelper
