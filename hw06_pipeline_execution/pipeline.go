@@ -1,5 +1,7 @@
 package hw06pipelineexecution
 
+import "sync"
+
 type (
 	In  = <-chan interface{}
 	Out = In
@@ -14,22 +16,58 @@ func ExecutePipeline(in In, done In, stages ...Stage) Out {
 	}
 
 	currentIn := in
+	var stagesOuts []Out
+	var wg sync.WaitGroup
+
 	for _, stage := range stages {
-		if stage != nil {
-			currentIn = stage(currentIn)
+		if stage == nil {
+			continue
 		}
+
+		proxyIn := make(Bi)
+		stageOut := stage(proxyIn)
+		stagesOuts = append(stagesOuts, stageOut)
+
+		wg.Add(1)
+		go func(src In, dst Bi) {
+			defer wg.Done()
+			defer close(dst)
+			for {
+				select {
+				case <-done:
+					go func(ch In) {
+						for range ch {
+						}
+					}(src)
+					return
+				case val, ok := <-src:
+					if !ok {
+						return
+					}
+					select {
+					case <-done:
+						go func(ch In) {
+							for range ch {
+							}
+						}(src)
+						return
+					case dst <- val:
+					}
+				}
+			}
+		}(currentIn, proxyIn)
+
+		currentIn = stageOut
 	}
 
 	finalOut := make(Bi)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer close(finalOut)
 		for {
 			select {
 			case <-done:
-				go func() {
-					for range currentIn {
-					}
-				}()
 				return
 			case currentOut, ok := <-currentIn:
 				if !ok {
@@ -37,15 +75,30 @@ func ExecutePipeline(in In, done In, stages ...Stage) Out {
 				}
 				select {
 				case <-done:
-					go func() {
-						for range currentIn {
-						}
-					}()
 					return
 				case finalOut <- currentOut:
 				}
 			}
 		}
 	}()
+
+	go func() {
+		<-done
+		for _, ch := range stagesOuts {
+			go func(c Out) {
+				for range c {
+				}
+			}(ch)
+		}
+		go func(c Out) {
+			for range c {
+			}
+		}(currentIn)
+	}()
+
+	go func() {
+		wg.Wait()
+	}()
+
 	return finalOut
 }
