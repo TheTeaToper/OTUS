@@ -16,7 +16,7 @@ func ExecutePipeline(in In, done In, stages ...Stage) Out {
 	}
 
 	currentIn := in
-	var stagesOuts []Out
+	stagesOuts := make([]Out, 0, len(stages))
 	var wg sync.WaitGroup
 
 	for _, stage := range stages {
@@ -29,33 +29,7 @@ func ExecutePipeline(in In, done In, stages ...Stage) Out {
 		stagesOuts = append(stagesOuts, stageOut)
 
 		wg.Add(1)
-		go func(src In, dst Bi) {
-			defer wg.Done()
-			defer close(dst)
-			for {
-				select {
-				case <-done:
-					go func(ch In) {
-						for range ch {
-						}
-					}(src)
-					return
-				case val, ok := <-src:
-					if !ok {
-						return
-					}
-					select {
-					case <-done:
-						go func(ch In) {
-							for range ch {
-							}
-						}(src)
-						return
-					case dst <- val:
-					}
-				}
-			}
-		}(currentIn, proxyIn)
+		go proxyStageInput(&wg, currentIn, proxyIn, done)
 
 		currentIn = stageOut
 	}
@@ -101,4 +75,32 @@ func ExecutePipeline(in In, done In, stages ...Stage) Out {
 	}()
 
 	return finalOut
+}
+
+func proxyStageInput(wg *sync.WaitGroup, src In, dst Bi, done In) {
+	defer wg.Done()
+	defer close(dst)
+	for {
+		select {
+		case <-done:
+			go func(ch In) {
+				for range ch {
+				}
+			}(src)
+			return
+		case val, ok := <-src:
+			if !ok {
+				return
+			}
+			select {
+			case <-done:
+				go func(ch In) {
+					for range ch {
+					}
+				}(src)
+				return
+			case dst <- val:
+			}
+		}
+	}
 }
