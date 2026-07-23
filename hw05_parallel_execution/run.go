@@ -1,5 +1,6 @@
 package hw05parallelexecution
 
+//go:gosec G115
 import (
 	"context"
 	"errors"

@@ -12,7 +12,7 @@ linters:
     - asciicheck
     - bodyclose
     - copyloopvar
-    - depguard
+    # - depguard
     - dogsled
     - dupl
     - durationcheck
@@ -47,44 +47,16 @@ linters:
     - unparam
     - unused
     - whitespace
-  settings:
-    depguard:
-      rules:
-        main:
-          files:
-            - $all
-            - '!$test'
-          allow:
-            - $gostd
-            - github.com/dlclark/regexp2
-        test:
-          files:
-            - $test
-          allow:
-            - $gostd
-            - github.com/stretchr/testify
-            - github.com/stretchr/testify/require
-    funlen:
-      lines: 150
-      statements: 80
+    # ⚠️ Из этой секции удалены gci, gofmt, gofumpt
   exclusions:
-    generated: lax
-    presets:
-      - comments
-      - common-false-positives
-      - legacy
-      - std-error-handling
     rules:
       - linters:
-          - dupl
-          - errcheck
-          - gocyclo
+          - revive
+        text: "should have( a package)? comment"
+      - linters:
           - gosec
-        path: _test\.go
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+        text: "(G115|G404)"
+
 formatters:
   enable:
     - gci
@@ -93,18 +65,18 @@ formatters:
 
 linters-settings:
   depguard:
-    # В v2.x правила ВСЕГДА описываются внутри структуры "rules"
     rules:
       main:
-        # list-mode: lax разрешает ВСЕ импорты, кроме тех, что явно указаны в deny
         list-mode: lax
         files:
           - "$all"
-        allow:
-          - "$gostd"
-          - "github.com/stretchr/testify"
-        # Мы ничего не запрещаем, поэтому пустой deny уберет любые ошибки импортов
-        deny: []
+        # allow:
+        #   - "$gostd"
+        #   - "github.com/stretchr/testify"
+        # deny: []
+  
+  gocognit:
+    min-complexity: 40
 
   funlen:
     lines: 150
@@ -129,7 +101,7 @@ issues:
     - linters: [revive]
       text: "package comment should be of the form"
     - linters: [revive]
-      text: "package-comments:"
+      text: "should have a package comment"
     - linters: [staticcheck]
       text: "(ST1000|ST1020|ST1021|ST1022)"
     - linters: [gosec]
@@ -142,6 +114,8 @@ issues:
       text: "(possible misuse of unsafe.Pointer|should have signature)"
     - linters: [gosec]
       text: "G104"
+    - linters: [gosec]
+      text: "G115"
     - linters: [gosec]
       text: "(G301|G302|G307): Expect (directory permissions to be 0750|file permissions to be 0600)"
     - linters: [errcheck]

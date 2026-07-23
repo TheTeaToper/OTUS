@@ -32,6 +32,7 @@ jobs:
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           working-directory: ${{ env.BRANCH }}
+          args: --config=../.golangci.yml
 
   tests:
     runs-on: ubuntu-latest
