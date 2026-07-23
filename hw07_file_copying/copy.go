@@ -12,8 +12,8 @@ var (
 	ErrOffsetExceedsFileSize = errors.New("offset exceeds file size")
 )
 
-func Copy(fromPath, toPath string, offset, limit int64) error { //nolint:funlen
-	sourceFile, err := os.Open(fromPath) //nolint:gosec
+func Copy(fromPath, toPath string, offset, limit int64) error {
+	sourceFile, err := os.Open(fromPath)
 	if err != nil {
 		return fmt.Errorf("error of opening source file: %w", err)
 	}
@@ -51,7 +51,7 @@ func Copy(fromPath, toPath string, offset, limit int64) error { //nolint:funlen
 		return nil
 	}
 
-	destinationFile, err := os.Create(toPath) //nolint:gosec
+	destinationFile, err := os.Create(toPath)
 	if err != nil {
 		return fmt.Errorf("error of creating destination file: %w", err)
 	}
