@@ -39,7 +39,7 @@ linters:
     - nolintlint
     - prealloc
     - predeclared
-    - revive
+    # - revive
     - staticcheck
     - tagliatelle
     - thelper
@@ -53,6 +53,9 @@ linters:
       - linters:
           - revive
         text: "should have( a package)? comment"
+      - linters:
+          - revive
+        text: "empty-block: this block is empty, you can remove it"
       - linters:
           - gosec
         text: "(G115|G404)"

@@ -145,6 +145,128 @@ func TestAllStageStop(t *testing.T) {
 		wg.Wait()
 
 		require.Len(t, result, 0)
-
 	})
+}
+
+func passthroughStage(in In) Out {
+	out := make(Bi)
+	go func() {
+		defer close(out)
+		for val := range in {
+			out <- val
+		}
+	}()
+	return out
+}
+
+func TestBoundaryConditions(t *testing.T) {
+	t.Run("Empty stages slice", func(t *testing.T) {
+		in := make(Bi)
+		done := make(Bi)
+
+		// Должен просто вернуть исходный канал
+		out := ExecutePipeline(in, done)
+
+		if out != in {
+			t.Error("функция должна вернуть исходный канал 'in'")
+		}
+	})
+
+	t.Run("Contains nil stages", func(t *testing.T) {
+		in := make(Bi)
+		done := make(Bi)
+
+		out := ExecutePipeline(in, done, passthroughStage, nil, passthroughStage)
+
+		go func() {
+			in <- "test"
+			close(in)
+		}()
+
+		select {
+		case val, ok := <-out:
+			if !ok || val != "test" {
+				t.Errorf("пайплайн поврежден nil-стадией. Получено: %v", val)
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("Таймаут: пайплайн завис из-за nil-стадии")
+		}
+	})
+
+	// Сценарий 3: Входной канал закрывается сразу (нет данных)
+	t.Run("Immediate close of input channel", func(t *testing.T) {
+		in := make(Bi)
+		done := make(Bi)
+
+		out := ExecutePipeline(in, done, passthroughStage, passthroughStage)
+
+		close(in)
+
+		select {
+		case _, ok := <-out:
+			if ok {
+				t.Error("Финальный канал должен закрыться пустым")
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("Таймаут: пайплайн завис при мгновенном закрытии входа")
+		}
+	})
+}
+
+func TestExecutePipeline_TrueCpuStop(t *testing.T) {
+	var wg sync.WaitGroup
+
+	infiniteCpuStage := func(in In) Out {
+		out := make(Bi)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer close(out)
+
+			for val := range in {
+				res := val.(int)
+				for i := 0; i < 1000; i++ {
+					res += i
+				}
+				out <- res
+			}
+		}()
+		return out
+	}
+
+	in := make(Bi)
+	done := make(Bi)
+
+	pipelineOut := ExecutePipeline(in, done, infiniteCpuStage)
+
+	go func() {
+		for i := 0; ; i++ {
+			select {
+			case in <- i:
+			case <-done:
+				close(in)
+				return
+			}
+		}
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	close(done)
+
+	for range pipelineOut {
+	}
+
+	doneChan := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(doneChan)
+	}()
+
+	select {
+	case <-doneChan:
+		t.Log("Успех: Стадия мгновенно прекратила вычисления после сигнала done")
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Провал: Стадия продолжает нагружать CPU после done (утечка процессора)!")
+	}
 }
