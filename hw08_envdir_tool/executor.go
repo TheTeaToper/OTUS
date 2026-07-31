@@ -29,7 +29,7 @@ func RunCmd(cmd []string, env Environment) (returnCode int) {
 		}
 	}
 
-	var resultEnvironments []string
+	resultEnvironments := make([]string, 0, len(toolEnvironments))
 	for key, value := range toolEnvironments {
 		resultEnvironments = append(resultEnvironments, key+"="+value)
 	}
