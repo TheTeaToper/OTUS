@@ -37,7 +37,7 @@ type (
 	}
 )
 
-//nolint:gocognit,funlen
+//nolint:gocognit
 func TestValidate(t *testing.T) {
 	tests := []struct {
 		name        string

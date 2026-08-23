@@ -47,7 +47,7 @@ type ProgramError struct {
 func (p ProgramError) Error() string { return fmt.Sprintf("validator program error: %v", p.Err) }
 func (p ProgramError) Unwrap() error { return p.Err }
 
-//nolint:gocognit,funlen,lll,nestif
+//nolint:funlen,lll,nestif
 func Validate(v interface{}) error {
 	value := reflect.ValueOf(v)
 
@@ -126,7 +126,7 @@ func Validate(v interface{}) error {
 	return nil
 }
 
-//nolint:gocognit,funlen,lll
+//nolint:gocognit,lll
 func validateValue(val reflect.Value, rules []string, fieldName string) error {
 	var validationErrors ValidationErrors
 
