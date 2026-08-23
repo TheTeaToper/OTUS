@@ -50,7 +50,6 @@ func (p ProgramError) Unwrap() error { return p.Err }
 //nolint:lll,nestif
 func Validate(v interface{}) error {
 	value := reflect.ValueOf(v)
-
 	if value.Kind() == reflect.Pointer {
 		value = value.Elem()
 	}
