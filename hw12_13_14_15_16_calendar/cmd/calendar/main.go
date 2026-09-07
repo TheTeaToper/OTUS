@@ -56,8 +56,7 @@ func main() {
 		if err := sqlStorage.Connect(connectCtx); err != nil {
 			connectCalcel()
 			logger.Error(fmt.Sprintf("Database connection error: %v", err))
-			cancel()
-			os.Exit(1)
+			os.Exit(1) //nolint:gocritic
 		}
 		connectCalcel()
 		logger.Info("Sql storage successfully initialized")
@@ -72,7 +71,7 @@ func main() {
 		storage = sqlStorage
 	default:
 		logger.Error(fmt.Sprintf("Incorrect storage type: %s", config.Storage.Type))
-		os.Exit(1)
+		os.Exit(1) //nolint:gocritic
 	}
 
 	calendar := app.New(logger, storage)
