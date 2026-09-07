@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/logger"
-	"github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/storage"
+	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/logger"
+	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/storage"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 )
@@ -30,7 +30,7 @@ func (ss *SqlStorage) Connect(ctx context.Context) error {
 		return fmt.Errorf("database connection error: %w", err)
 	}
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return fmt.Errorf("ping db error: %w", err)
 	}
 	ss.db = db

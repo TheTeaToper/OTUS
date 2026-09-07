@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/app"
-	"github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/logger"
-	internalhttp "github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/server/http"
-	storage "github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/storage"
-	inmemorystorage "github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/storage/inmemory"
-	sqlstorage "github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/storage/sql"
+	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/app"
+	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/logger"
+	internalhttp "github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/server/http"
+	storage "github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/storage"
+	inmemorystorage "github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/storage/inmemory"
+	sqlstorage "github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/storage/sql"
 )
 
 var configFile string

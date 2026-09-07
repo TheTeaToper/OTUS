@@ -41,7 +41,9 @@ func LoadConfig(path string) (Config, error) {
 	if err != nil {
 		return cfg, fmt.Errorf("loading cfg file error: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	err = yaml.NewDecoder(file).Decode(&cfg)
 	if err != nil {
