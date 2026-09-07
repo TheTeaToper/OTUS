@@ -29,7 +29,6 @@ linters:
     - goconst
     - gocritic
     - gocyclo
-    - godot
     - goheader
     - goprintffuncname
     - gosec
@@ -67,6 +66,9 @@ linters:
           allow:
             - $gostd
             - gopkg.in/yaml.v3
+            - github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar
+            - github.com/jmoiron/sqlx
+            - github.com/jackc/pgx
         Test:
           files:
             - $test

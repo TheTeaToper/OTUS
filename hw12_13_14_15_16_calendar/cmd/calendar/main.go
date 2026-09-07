@@ -56,6 +56,7 @@ func main() {
 		if err := sqlStorage.Connect(connectCtx); err != nil {
 			connectCalcel()
 			logger.Error(fmt.Sprintf("Database connection error: %v", err))
+			cancel()
 			os.Exit(1)
 		}
 		connectCalcel()
