@@ -46,7 +46,6 @@ linters:
     - predeclared
     - revive
     - staticcheck
-    - tagliatelle
     - thelper
     - unconvert
     - unparam
