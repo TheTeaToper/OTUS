@@ -2,30 +2,72 @@ package internalhttp
 
 import (
 	"context"
+	"fmt"
+	"net"
+	"net/http"
 )
 
-type Server struct { // TODO
+type Server struct {
+	httpServer *http.Server
+	logger     Logger
 }
 
-type Logger interface { // TODO
+type ServerConf struct {
+	Host string
+	Port string
 }
 
-type Application interface { // TODO
+type Logger interface {
+	Debug(msg string)
+	Info(msg string)
+	Warning(msg string)
+	Error(msg string)
 }
 
-func NewServer(logger Logger, app Application) *Server {
-	return &Server{}
+type Application interface{}
+
+type Storage interface{}
+
+func NewServer(serverConf ServerConf, app Application, storage Storage, logger Logger) *Server {
+	server := &Server{
+		logger: logger,
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/hello", server.loggingMiddleware(http.HandlerFunc(server.helloHandler)))
+	mux.Handle("/", server.loggingMiddleware(http.HandlerFunc(server.helloHandler)))
+
+	server.httpServer = &http.Server{
+		Addr:    net.JoinHostPort(serverConf.Host, serverConf.Port),
+		Handler: mux,
+	}
+
+	return server
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	// TODO
-	<-ctx.Done()
-	return nil
+	s.logger.Info(fmt.Sprintf("Starting HTTP server on %s", s.httpServer.Addr))
+
+	errorChan := make(chan error, 1)
+	go func() {
+		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errorChan <- err
+		}
+	}()
+
+	select {
+	case err := <-errorChan:
+		return err
+	case <-ctx.Done():
+		return nil
+	}
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	// TODO
-	return nil
+	s.logger.Info("Shutting down HTTP server...")
+	return s.httpServer.Shutdown(ctx)
 }
 
-// TODO
+func (s *Server) helloHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("Hello, world!"))
+}

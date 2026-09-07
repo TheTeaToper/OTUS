@@ -3,21 +3,24 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/app"
-	"github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/logger"
-	internalhttp "github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/server/http"
-	memorystorage "github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/storage/memory"
+	"github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/app"
+	"github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/logger"
+	internalhttp "github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/server/http"
+	storage "github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/storage"
+	inmemorystorage "github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/storage/inmemory"
+	sqlstorage "github.com/TheTeaToper/OTUS/hw12_13_14_15_calendar/internal/storage/sql"
 )
 
 var configFile string
 
 func init() {
-	flag.StringVar(&configFile, "config", "/etc/calendar/config.toml", "Path to configuration file")
+	flag.StringVar(&configFile, "config", "/etc/calendar/config.yaml", "Path to configuration file")
 }
 
 func main() {
@@ -28,17 +31,52 @@ func main() {
 		return
 	}
 
-	config := NewConfig()
-	logg := logger.New(config.Logger.Level)
+	config, err := LoadConfig(configFile)
+	if err != nil {
+		fmt.Printf("Failed to load cfg from %s with error: %v", configFile, err)
+		config = NewConfig()
+	}
 
-	storage := memorystorage.New()
-	calendar := app.New(logg, storage)
-
-	server := internalhttp.NewServer(logg, calendar)
+	logger := logger.New(config.Logger.Level)
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
+
+	var storage storage.Storage
+	switch config.Storage.Type {
+	case "in-memory":
+		logger.Info("In-memory storage initialization...")
+		storage = inmemorystorage.New()
+		logger.Info("In-memory storage successfully initialized")
+	case "sql":
+		logger.Info("Sql storage initialization...")
+		sqlStorage := sqlstorage.New(config.Storage.DSN, logger)
+		connectCtx, connectCalcel := context.WithTimeout(ctx, 5*time.Second)
+		if err := sqlStorage.Connect(connectCtx); err != nil {
+			connectCalcel()
+			logger.Error(fmt.Sprintf("Database connection error: %v", err))
+			os.Exit(1)
+		}
+		connectCalcel()
+		logger.Info("Sql storage successfully initialized")
+		defer func() {
+			logger.Info("Closing database connection...")
+			closeCtx, closeCancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer closeCancel()
+			if err := sqlStorage.Close(closeCtx); err != nil {
+				logger.Error(fmt.Sprintf("Closing database connection error: %v", err))
+			}
+		}()
+		storage = sqlStorage
+	default:
+		logger.Error(fmt.Sprintf("Incorrect storage type: %s", config.Storage.Type))
+		os.Exit(1)
+	}
+
+	calendar := app.New(logger, storage)
+
+	server := internalhttp.NewServer(internalhttp.ServerConf(config.Server), calendar, storage, logger)
 
 	go func() {
 		<-ctx.Done()
@@ -47,14 +85,14 @@ func main() {
 		defer cancel()
 
 		if err := server.Stop(ctx); err != nil {
-			logg.Error("failed to stop http server: " + err.Error())
+			logger.Error("failed to stop http server: " + err.Error())
 		}
 	}()
 
-	logg.Info("calendar is running...")
+	logger.Info("calendar is running...")
 
 	if err := server.Start(ctx); err != nil {
-		logg.Error("failed to start http server: " + err.Error())
+		logger.Error("failed to start http server: " + err.Error())
 		cancel()
 		os.Exit(1) //nolint:gocritic
 	}
