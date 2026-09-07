@@ -66,6 +66,7 @@ linters:
             - "!$test"
           allow:
             - $gostd
+            - gopkg.in/yaml.v3
         Test:
           files:
             - $test
