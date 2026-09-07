@@ -37,7 +37,7 @@ func NewConfig() Config {
 
 func LoadConfig(path string) (Config, error) {
 	cfg := NewConfig()
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec
 	if err != nil {
 		return cfg, fmt.Errorf("loading cfg file error: %w", err)
 	}

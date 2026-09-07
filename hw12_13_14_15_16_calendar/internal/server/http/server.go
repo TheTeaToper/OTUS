@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 )
 
 type Server struct {
@@ -37,8 +38,9 @@ func NewServer(serverConf ServerConf, app Application, storage Storage, logger L
 	mux.Handle("/", server.loggingMiddleware(http.HandlerFunc(server.helloHandler)))
 
 	server.httpServer = &http.Server{
-		Addr:    net.JoinHostPort(serverConf.Host, serverConf.Port),
-		Handler: mux,
+		Addr:              net.JoinHostPort(serverConf.Host, serverConf.Port),
+		Handler:           mux,
+		ReadHeaderTimeout: 3 * time.Second,
 	}
 
 	return server
