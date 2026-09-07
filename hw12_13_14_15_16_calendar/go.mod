@@ -7,7 +7,7 @@ require github.com/jmoiron/sqlx v1.4.0
 require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -18,5 +18,5 @@ require (
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 )
