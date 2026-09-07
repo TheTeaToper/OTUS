@@ -7,7 +7,7 @@ import (
 )
 
 type InmemoryStorage struct {
-	mutex  sync.RWMutex //nolint:unused
+	mutex  sync.RWMutex
 	events map[int64]storage.Event
 	nextID int64
 }

@@ -71,7 +71,7 @@ func main() {
 		storage = sqlStorage
 	default:
 		logger.Error(fmt.Sprintf("Incorrect storage type: %s", config.Storage.Type))
-		os.Exit(1) //nolint:gocritic
+		os.Exit(1)
 	}
 
 	calendar := app.New(logger, storage)
@@ -94,6 +94,6 @@ func main() {
 	if err := server.Start(ctx); err != nil {
 		logger.Error("failed to start http server: " + err.Error())
 		cancel()
-		os.Exit(1) //nolint:gocritic
+		os.Exit(1)
 	}
 }

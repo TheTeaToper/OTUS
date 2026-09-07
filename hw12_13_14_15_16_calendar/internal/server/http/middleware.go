@@ -25,7 +25,7 @@ func (rw *responseWriterInterceptor) Write(b []byte) (int, error) {
 	return n, err
 }
 
-func (s *Server) loggingMiddleware(next http.Handler) http.Handler { //nolint:unused
+func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
