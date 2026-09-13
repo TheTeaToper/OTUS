@@ -1,1 +1,15 @@
-version: "3"
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: calendar_db
+    environment:
+      POSTGRES_USER: calendar_user
+      POSTGRES_PASSWORD: calendar_password
+      POSTGRES_DB: calendar
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -1,5 +1,8 @@
-[logger]
-level = "INFO"
-
-# TODO
-# ...
+logger:
+  level: debug
+storage:
+  type: sql
+  dsn: "host=localhost port=5432 user=calendar_user password=calendar_password dbname=calendar sslmode=disable"
+server:
+  host: 127.0.0.1
+  port: "8080"

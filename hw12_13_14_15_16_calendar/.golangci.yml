@@ -1,0 +1,90 @@
+version: "2"
+
+run:
+  tests: true
+  build-tags:
+    - bench
+    - "!bench"
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+
+linters:
+  default: none
+  enable:
+    - asciicheck
+    - depguard
+    - dogsled
+    - dupl
+    - bodyclose
+    - durationcheck
+    - errorlint
+    - exhaustive
+    - copyloopvar
+    - funlen
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - goheader
+    - goprintffuncname
+    - gosec
+    - govet
+    - importas
+    - ineffassign
+    - lll
+    - makezero
+    - misspell
+    - nestif
+    - nilerr
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - revive
+    - staticcheck
+    - thelper
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+
+  settings:
+    funlen:
+      lines: 150
+      statements: 80
+    depguard:
+      rules:
+        Main:
+          files:
+            - $all
+            - "!$test"
+          allow:
+            - $gostd
+            - gopkg.in/yaml.v3
+            - github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar
+            - github.com/jmoiron/sqlx
+            - github.com/jackc/pgx
+        Test:
+          files:
+            - $test
+          allow:
+            - $gostd
+            - github.com/stretchr/testify
+            - github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar
+    revive:
+      rules:
+        - name: package-comments
+          disabled: true
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - dupl
+          - gocyclo
+          - gosec
