@@ -31,6 +31,7 @@ jobs:
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           working-directory: ${{ env.BRANCH }}
+          args: --config=../.golangci.yml
 
   tests:
     runs-on: ubuntu-latest
@@ -43,6 +44,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
 
       - name: Check out code
         uses: actions/checkout@v4

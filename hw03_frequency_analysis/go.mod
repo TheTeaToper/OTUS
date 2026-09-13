@@ -1,8 +1,11 @@
-module github.com/fixme_my_friend/hw03_frequency_analysis
+module github.com/TheTeaToper/OTUS/hw03_frequency_analysis
 
 go 1.23
 
-require github.com/stretchr/testify v1.7.0
+require (
+	github.com/dlclark/regexp2 v1.12.0
+	github.com/stretchr/testify v1.7.0
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

@@ -7,9 +7,9 @@ import (
 )
 
 // Change to true if needed.
-var taskWithAsteriskIsCompleted = false
+var taskWithAsteriskIsCompleted = true
 
-var text = `Как видите, он  спускается  по  лестнице  вслед  за  своим
+var text = `Как видите , он  спускается  по  лестнице  вслед  за  своим
 	другом   Кристофером   Робином,   головой   вниз,  пересчитывая
 	ступеньки собственным затылком:  бум-бум-бум.  Другого  способа
 	сходить  с  лестницы  он  пока  не  знает.  Иногда ему, правда,
@@ -47,7 +47,49 @@ func TestTop10(t *testing.T) {
 	t.Run("no words in empty string", func(t *testing.T) {
 		require.Len(t, Top10(""), 0)
 	})
-
+	t.Run("no words in non-empty string", func(t *testing.T) {
+		require.Len(t, Top10("@ . # !!! ? (*)"), 0)
+	})
+	t.Run("case insensitive test", func(t *testing.T) {
+		expected := []string{
+			"регистронезависимость",
+			"на",
+			"проверяется",
+			"тест",
+			"тестом",
+			"этим",
+		}
+		require.Equal(t, expected, Top10("тест на регистронезависимость. Регистронезависимость проверяется этим тестом"))
+	})
+	t.Run("words with dash test", func(t *testing.T) {
+		expected := []string{
+			"кое-как",
+			"домашкой",
+			"запилил",
+			"с",
+			"справился",
+			"тест",
+		}
+		require.Equal(t, expected, Top10("Кое-как справился с домашкой - кое-как запилил тест"))
+	})
+	t.Run("emoji test", func(t *testing.T) {
+		expected := []string{
+			"🏴‍☠️",
+			"британский",
+			"в",
+			"веселый",
+			"герб",
+			"головорезов",
+			"из",
+			"на",
+			"небе",
+			"обрезов🔫",
+		}
+		require.Equal(t, expected, Top10(`Веселый 🏴‍☠️ Роджер 🏴‍☠️ в небе,
+		британский герб 🇬🇧 на теле,
+		стреляют из обрезов🔫
+		толпа головорезов`))
+	})
 	t.Run("positive test", func(t *testing.T) {
 		if taskWithAsteriskIsCompleted {
 			expected := []string{
