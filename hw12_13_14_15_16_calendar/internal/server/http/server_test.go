@@ -78,7 +78,7 @@ func TestHTTP_ListEventsForDay(t *testing.T) {
 	mockLogger := logger.New("DEBUG")
 	mockStorage := &mockStorage{}
 	targetTime := time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
-	mockStorage.Add(&storage.Event{
+	mockStorage.CreateEvent(&storage.Event{
 		Title:     "Событие №1",
 		StartTime: targetTime,
 		User:      "test-user",
