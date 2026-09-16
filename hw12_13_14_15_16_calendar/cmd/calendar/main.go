@@ -4,17 +4,21 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/app"
 	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/logger"
+	internalgrpc "github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/server/grpc"
 	internalhttp "github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/server/http"
 	storage "github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/storage"
 	inmemorystorage "github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/storage/inmemory"
 	sqlstorage "github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/storage/sql"
+	"golang.org/x/sync/errgroup"
 )
 
 var configFile string
@@ -55,7 +59,7 @@ func main() {
 		connectCtx, connectCalcel := context.WithTimeout(ctx, 5*time.Second)
 		if err := sqlStorage.Connect(connectCtx); err != nil {
 			connectCalcel()
-			logger.Error(fmt.Sprintf("Database connection error: %v", err))
+			logger.Error("Database connection error: %v", err)
 			os.Exit(1) //nolint:gocritic
 		}
 		connectCalcel()
@@ -65,35 +69,55 @@ func main() {
 			closeCtx, closeCancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer closeCancel()
 			if err := sqlStorage.Close(closeCtx); err != nil {
-				logger.Error(fmt.Sprintf("Closing database connection error: %v", err))
+				logger.Error("Closing database connection error: %v", err)
 			}
 		}()
 		storage = sqlStorage
 	default:
-		logger.Error(fmt.Sprintf("Incorrect storage type: %s", config.Storage.Type))
+		logger.Error("Incorrect storage type: %s", config.Storage.Type)
 		os.Exit(1)
 	}
 
 	calendar := app.New(logger, storage)
 
-	server := internalhttp.NewServer(internalhttp.ServerConf(config.Server), calendar, storage, logger)
+	httpServer := internalhttp.NewServer(internalhttp.ServerConf(config.Server), calendar, logger)
 
-	go func() {
-		<-ctx.Done()
+	// адрес для gRPC-сервера (Host:Port+1)
+	basePort, err := strconv.Atoi(config.Server.Port)
+	if err != nil {
+		logger.Error("Invalid port in config: %v", err)
+		os.Exit(1)
+	}
+	grpcAddr := net.JoinHostPort(config.Server.Host, strconv.Itoa(basePort+1))
+	grpcServer := internalgrpc.NewServer(calendar, logger)
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-		defer cancel()
+	g, groupCtx := errgroup.WithContext(ctx)
 
-		if err := server.Stop(ctx); err != nil {
-			logger.Error("failed to stop http server: " + err.Error())
-		}
-	}()
+	g.Go(func() error {
+		go func() {
+			<-ctx.Done()
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+			defer cancel()
+
+			if err := httpServer.Stop(ctx); err != nil {
+				logger.Error("failed to stop http server: %v", err.Error())
+			}
+		}()
+		return httpServer.Start(groupCtx)
+	})
+
+	g.Go(func() error {
+		return grpcServer.Start(groupCtx, grpcAddr)
+	})
 
 	logger.Info("calendar is running...")
 
-	if err := server.Start(ctx); err != nil {
-		logger.Error("failed to start http server: " + err.Error())
+	if err := g.Wait(); err != nil && groupCtx.Err() == nil {
+		logger.Error("server error: %v", err)
 		cancel()
 		os.Exit(1)
 	}
+
+	logger.Info("calendar stopped successfully")
 }

@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package api;
+
+option go_package = "hw12_13_14_15_16_calendar/api;api";
+
+import "google/protobuf/timestamp.proto";
+
+message Event {
+    string id = 1;
+    string title = 2;
+    google.protobuf.Timestamp start_time = 3;
+    google.protobuf.Timestamp end_time = 4;
+    string description = 5;
+    string user_id = 6;
+}
+
+message CreateEventRequest {
+    string title = 1;
+    google.protobuf.Timestamp start_time = 2;
+    google.protobuf.Timestamp end_time = 3;
+    string description = 4;
+    string user_id = 5;
+}
+
+message CreateEventResponse {
+    Event event = 1;
+}
+
+message UpdateEventRequest {
+    string id = 1;
+    Event event = 2;
+}
+
+message UpdateEventResponse {
+    Event event = 1;
+}
+
+message DeleteEventRequest {
+    string id = 1;
+}
+
+message DeleteEventResponse {
+    bool success = 1;
+}
+
+message EventsForDayRequest {
+    google.protobuf.Timestamp day = 1;
+}
+
+message EventsForWeekRequest {
+    google.protobuf.Timestamp week_first_day = 1;
+}
+
+message EventsForMonthRequest {
+    google.protobuf.Timestamp month_first_day = 1;
+}
+
+message EventsResponse {
+    repeated Event events = 1;
+}
+
+service EventsService {
+    rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse);
+    rpc UpdateEvent(UpdateEventRequest) returns (UpdateEventResponse);
+    rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse);
+
+    rpc EventsForDay(EventsForDayRequest) returns (EventsResponse);
+    rpc EventsForWeek(EventsForWeekRequest) returns (EventsResponse);
+    rpc EventsForMonth(EventsForMonthRequest) returns (EventsResponse);
+}
