@@ -52,7 +52,7 @@ func TestHTTP_CreateEvent(t *testing.T) {
 	fmt.Print(eventReq)
 	body, _ := json.Marshal(eventReq)
 
-	req, err := http.NewRequest(http.MethodPost, "/create_event", bytes.NewBuffer(body))
+	req, err := http.NewRequest(http.MethodPost, "/create_event", bytes.NewBuffer(body)) //nolint:noctx
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestHTTP_ListEventsForDay(t *testing.T) {
 	calendar := app.New(mockLogger, mockStorage)
 	server := NewServer(ServerConf{Host: "127.0.0.1", Port: "8080"}, calendar, mockLogger)
 
-	req, err := http.NewRequest(http.MethodGet, "/events_for_day?day=2026-09-16", nil)
+	req, err := http.NewRequest(http.MethodGet, "/events_for_day?day=2026-09-16", nil) //nolint:nogcx
 	if err != nil {
 		t.Fatal(err)
 	}

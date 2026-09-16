@@ -68,6 +68,9 @@ linters:
             - github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar
             - github.com/jmoiron/sqlx
             - github.com/jackc/pgx
+            - golang.org/x/sync
+            - google.golang.org/grpc
+            - google.golang.org/protobuf
         Test:
           files:
             - $test

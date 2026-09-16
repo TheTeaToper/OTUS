@@ -29,7 +29,9 @@ type Application interface{}
 
 type Storage interface{}
 
-func NewServer(serverConf ServerConf, app *app.App /*storage Storage,*/, logger *logger.Logger) *Server {
+const EVENTS = "events"
+
+func NewServer(serverConf ServerConf, app *app.App, logger *logger.Logger) *Server {
 	server := &Server{
 		calendarApp: app,
 		logger:      logger,
@@ -192,7 +194,7 @@ func (s *Server) handleEventsForDay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"events": s.toHTTPModelSlice(events)})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{EVENTS: s.toHTTPModelSlice(events)})
 }
 
 func (s *Server) handleEventsForWeek(w http.ResponseWriter, r *http.Request) {
@@ -215,7 +217,7 @@ func (s *Server) handleEventsForWeek(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"events": s.toHTTPModelSlice(events)})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{EVENTS: s.toHTTPModelSlice(events)})
 }
 
 func (s *Server) handleEventsForMonth(w http.ResponseWriter, r *http.Request) {
@@ -238,7 +240,7 @@ func (s *Server) handleEventsForMonth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"events": s.toHTTPModelSlice(events)})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{EVENTS: s.toHTTPModelSlice(events)})
 }
 
 func (s *Server) toHTTPModel(e storage.Event) storage.Event {

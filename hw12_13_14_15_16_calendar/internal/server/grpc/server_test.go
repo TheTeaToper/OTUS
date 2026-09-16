@@ -58,7 +58,7 @@ func TestGRPC_CreateAndListEvents(t *testing.T) {
 		return listener.Dial()
 	}
 
-	conn, err := grpc.DialContext(
+	conn, err := grpc.DialContext( //nolint:staticcheck
 		ctx, "bufnet",
 		grpc.WithContextDialer(dialer),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

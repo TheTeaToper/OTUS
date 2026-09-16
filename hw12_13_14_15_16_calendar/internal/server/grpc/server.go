@@ -2,6 +2,7 @@ package internalgrpc
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strconv"
 	"time"
@@ -30,6 +31,7 @@ func NewServer(calendarApp *app.App, logger *logger.Logger) *Server {
 	}
 }
 
+//nolint:lll
 func (s *Server) loggingInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	start := time.Now()
 	resp, err := handler(ctx, req)
@@ -38,7 +40,7 @@ func (s *Server) loggingInterceptor(ctx context.Context, req interface{}, info *
 }
 
 func (s *Server) Start(ctx context.Context, addr string) error {
-	lis, err := net.Listen("tcp", addr)
+	lis, err := net.Listen("tcp", addr) //nolint:noctx
 	if err != nil {
 		return err
 	}
@@ -48,7 +50,7 @@ func (s *Server) Start(ctx context.Context, addr string) error {
 
 	errorChan := make(chan error, 1)
 	go func() {
-		if err := s.grpcServer.Serve(lis); err != nil && err != grpc.ErrServerStopped {
+		if err := s.grpcServer.Serve(lis); err != nil && errors.Is(err, grpc.ErrServerStopped) {
 			errorChan <- err
 		}
 	}()

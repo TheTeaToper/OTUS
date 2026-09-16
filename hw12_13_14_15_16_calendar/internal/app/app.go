@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	// "time"
-
 	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/logger"
 	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/storage"
 )
@@ -17,8 +15,7 @@ type App struct {
 	storage storage.Storage
 }
 
-type Storage interface { // TODO
-}
+type Storage interface{}
 
 func New(logger *logger.Logger, storage storage.Storage) *App {
 	return &App{
