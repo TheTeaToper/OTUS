@@ -50,7 +50,7 @@ func (ss *SqlStorage) Close(ctx context.Context) error {
 	return nil
 }
 
-func (ss *SqlStorage) Add(e *storage.Event) error {
+func (ss *SqlStorage) CreateEvent(e *storage.Event) error {
 	var exists bool
 	ss.logger.Debug(fmt.Sprintf("Sql storage. Adding event [%#v]...", e))
 
@@ -72,7 +72,7 @@ func (ss *SqlStorage) Add(e *storage.Event) error {
 	return nil
 }
 
-func (ss *SqlStorage) Update(e *storage.Event) error {
+func (ss *SqlStorage) UpdateEvent(e *storage.Event) error {
 	var exists bool
 	ss.logger.Debug(fmt.Sprintf("Sql storage. Updating event [%#v]...", e))
 	checkExistanceQuery := `SELECT EXISTS(SELECT 1 FROM events WHERE id != $1 AND start_time < $3 AND end_time > $2)`
@@ -101,7 +101,7 @@ func (ss *SqlStorage) Update(e *storage.Event) error {
 	return nil
 }
 
-func (ss *SqlStorage) Delete(id int64) error {
+func (ss *SqlStorage) DeleteEvent(id int64) error {
 	ss.logger.Debug(fmt.Sprintf("Sql storage. Deleting event [ID = %v]...", id))
 	deleteQuery := `DELETE FROM events WHERE id=$1`
 	res, err := ss.db.Exec(deleteQuery, id)
@@ -119,7 +119,7 @@ func (ss *SqlStorage) Delete(id int64) error {
 	return nil
 }
 
-func (ss *SqlStorage) List() ([]storage.Event, error) {
+func (ss *SqlStorage) ListEvents() ([]storage.Event, error) {
 	ss.logger.Debug("Sql storage. Getting events list...")
 	selectQuery := `SELECT id, title, start_time, end_time, user_id FROM events`
 	var events []storage.Event

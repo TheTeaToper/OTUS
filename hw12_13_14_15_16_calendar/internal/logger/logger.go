@@ -36,26 +36,26 @@ func (l *Logger) log(level string, msg string) {
 	fmt.Printf("[%s] %s: %s\n", time.Now().Format("2006-01-02 15:04:05"), level, msg)
 }
 
-func (l *Logger) Debug(msg string) {
+func (l *Logger) Debug(msg string, args ...interface{}) {
 	if l.level <= DebugLevel {
-		l.log("DEBUG", msg)
+		l.log("DEBUG", fmt.Sprintf(msg, args...))
 	}
 }
 
-func (l *Logger) Info(msg string) {
+func (l *Logger) Info(msg string, args ...interface{}) {
 	if l.level <= InfoLevel {
-		l.log("INFO", msg)
+		l.log("INFO", fmt.Sprintf(msg, args...))
 	}
 }
 
-func (l *Logger) Warning(msg string) {
+func (l *Logger) Warning(msg string, args ...interface{}) {
 	if l.level <= WarningLevel {
-		l.log("WARNING", msg)
+		l.log("WARNING", fmt.Sprintf(msg, args...))
 	}
 }
 
-func (l *Logger) Error(msg string) {
+func (l *Logger) Error(msg string, args ...interface{}) {
 	if l.level <= ErrorLevel {
-		l.log("ERROR", msg)
+		l.log("ERROR", fmt.Sprintf(msg, args...))
 	}
 }
