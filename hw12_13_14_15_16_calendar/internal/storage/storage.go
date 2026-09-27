@@ -10,8 +10,8 @@ var (
 )
 
 type Storage interface {
-	Add(e *Event) error
-	Update(e *Event) error
-	Delete(id int64) error
-	List() ([]Event, error)
+	CreateEvent(e *Event) error
+	UpdateEvent(e *Event) error
+	DeleteEvent(id int64) error
+	ListEvents() ([]Event, error)
 }

@@ -19,7 +19,7 @@ func New() *InmemoryStorage {
 	}
 }
 
-func (ms *InmemoryStorage) Add(e *storage.Event) error {
+func (ms *InmemoryStorage) CreateEvent(e *storage.Event) error {
 	ms.mutex.Lock()
 	defer ms.mutex.Unlock()
 
@@ -35,7 +35,7 @@ func (ms *InmemoryStorage) Add(e *storage.Event) error {
 	return nil
 }
 
-func (ms *InmemoryStorage) Update(e *storage.Event) error {
+func (ms *InmemoryStorage) UpdateEvent(e *storage.Event) error {
 	ms.mutex.Lock()
 	defer ms.mutex.Unlock()
 
@@ -56,7 +56,7 @@ func (ms *InmemoryStorage) Update(e *storage.Event) error {
 	return nil
 }
 
-func (ms *InmemoryStorage) Delete(id int64) error {
+func (ms *InmemoryStorage) DeleteEvent(id int64) error {
 	ms.mutex.Lock()
 	defer ms.mutex.Unlock()
 
@@ -68,7 +68,7 @@ func (ms *InmemoryStorage) Delete(id int64) error {
 	return nil
 }
 
-func (ms *InmemoryStorage) List() ([]storage.Event, error) {
+func (ms *InmemoryStorage) ListEvents() ([]storage.Event, error) {
 	ms.mutex.Lock()
 	defer ms.mutex.Unlock()
 

@@ -62,6 +62,6 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 			latency,
 		)
 
-		s.logger.Info(logLine)
+		s.logger.Info(logLine, nil)
 	})
 }

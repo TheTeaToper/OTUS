@@ -23,30 +23,30 @@ func TestInmemoryStorage_CRUD(t *testing.T) {
 	}
 
 	// Add
-	err := store.Add(event)
+	err := store.CreateEvent(event)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), event.ID)
 
 	// List
-	list, err := store.List()
+	list, err := store.ListEvents()
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	assert.Equal(t, "First event", list[0].Title)
 
 	// Update
 	event.Title = "Updated event"
-	err = store.Update(event)
+	err = store.UpdateEvent(event)
 	require.NoError(t, err)
 
-	list, err = store.List()
+	list, err = store.ListEvents()
 	require.NoError(t, err)
 	assert.Equal(t, "Updated event", list[0].Title)
 
 	// Delete
-	err = store.Delete(event.ID)
+	err = store.DeleteEvent(event.ID)
 	require.NoError(t, err)
 
-	list, err = store.List()
+	list, err = store.ListEvents()
 	require.NoError(t, err)
 	assert.Empty(t, list)
 }
@@ -56,13 +56,13 @@ func TestInmemoryStorage_BusinessErrors(t *testing.T) {
 	t.Run("Ошибка: Событие не найдено при обновлении", func(t *testing.T) {
 		store := New()
 		event := &storage.Event{ID: 93, Title: "NotExistingEvent"}
-		err := store.Update(event)
+		err := store.UpdateEvent(event)
 		assert.ErrorIs(t, err, storage.ErrEventNotFound)
 	})
 
 	t.Run("Ошибка: Событие не найдено при удалении", func(t *testing.T) {
 		store := New()
-		err := store.Delete(14)
+		err := store.DeleteEvent(14)
 		assert.ErrorIs(t, err, storage.ErrEventNotFound)
 	})
 
@@ -74,7 +74,7 @@ func TestInmemoryStorage_BusinessErrors(t *testing.T) {
 			StartTime: now,
 			EndTime:   now.Add(1 * time.Hour),
 		}
-		err := store.Add(event1)
+		err := store.CreateEvent(event1)
 		require.NoError(t, err)
 
 		// Попытка добавить событие, пересекающееся по времени
@@ -82,7 +82,7 @@ func TestInmemoryStorage_BusinessErrors(t *testing.T) {
 			StartTime: now.Add(30 * time.Minute),
 			EndTime:   now.Add(2 * time.Hour),
 		}
-		err = store.Add(event2)
+		err = store.CreateEvent(event2)
 		assert.ErrorIs(t, err, storage.ErrDateBusy)
 	})
 
@@ -91,14 +91,14 @@ func TestInmemoryStorage_BusinessErrors(t *testing.T) {
 		now := time.Now()
 
 		event1 := &storage.Event{StartTime: now, EndTime: now.Add(1 * time.Hour)}
-		_ = store.Add(event1) // ID: 1
+		_ = store.CreateEvent(event1) // ID: 1
 
 		event2 := &storage.Event{StartTime: now.Add(2 * time.Hour), EndTime: now.Add(3 * time.Hour)}
-		_ = store.Add(event2) // ID: 2
+		_ = store.CreateEvent(event2) // ID: 2
 
 		// Пытаемся подвинуть второе событие так, чтобы оно наложилось на первое
 		event2.StartTime = now.Add(30 * time.Minute)
-		err := store.Update(event2)
+		err := store.UpdateEvent(event2)
 		assert.ErrorIs(t, err, storage.ErrDateBusy)
 	})
 }
@@ -129,20 +129,20 @@ func TestInmemoryStorage_Concurrency(t *testing.T) {
 				StartTime: start,
 				EndTime:   end,
 			}
-			_ = store.Add(event)
+			_ = store.CreateEvent(event)
 		}(i)
 
 		// Горутина на чтение (List)
 		go func() {
 			defer wg.Done()
-			_, _ = store.List()
+			_, _ = store.ListEvents()
 		}()
 	}
 
 	wg.Wait()
 
 	// Проверяем, что все события успешно записались без паник
-	list, err := store.List()
+	list, err := store.ListEvents()
 	require.NoError(t, err)
 	assert.Len(t, list, workers)
 }
