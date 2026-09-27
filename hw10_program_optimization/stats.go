@@ -9,58 +9,37 @@ import (
 )
 
 type User struct {
-	ID       int
-	Name     string
-	Username string
-	Email    string
-	Phone    string
-	Password string
-	Address  string
+	Email string
 }
 
 type DomainStat map[string]int
 
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
-	u, err := getUsers(r)
+	regExp, err := regexp.Compile(`(?i)\.` + domain + `$`)
 	if err != nil {
-		return nil, fmt.Errorf("get users error: %w", err)
-	}
-	return countDomains(u, domain)
-}
-
-type users [100_000]User
-
-func getUsers(r io.Reader) (result users, err error) {
-	content, err := io.ReadAll(r)
-	if err != nil {
-		return
+		return nil, fmt.Errorf("regex compilation error: %w", err)
 	}
 
-	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
+	domainStat := make(DomainStat)
+	jsonDecoder := json.NewDecoder(r)
+
+	for {
 		var user User
-		if err = json.Unmarshal([]byte(line), &user); err != nil {
-			return
+		err := jsonDecoder.Decode(&user)
+		if err == io.EOF {
+			break
 		}
-		result[i] = user
-	}
-	return
-}
-
-func countDomains(u users, domain string) (DomainStat, error) {
-	result := make(DomainStat)
-
-	for _, user := range u {
-		matched, err := regexp.Match("\\."+domain, []byte(user.Email))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("json decoding error: %w", err)
 		}
-
-		if matched {
-			num := result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])]
-			num++
-			result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])] = num
+		if regExp.MatchString(user.Email) {
+			emailParts := strings.Split(user.Email, "@")
+			if len(emailParts) == 2 {
+				extractedDomain := strings.ToLower(emailParts[1])
+				domainStat[extractedDomain]++
+			}
 		}
 	}
-	return result, nil
+
+	return domainStat, nil
 }
