@@ -14,4 +14,9 @@ type Storage interface {
 	UpdateEvent(e *Event) error
 	DeleteEvent(id int64) error
 	ListEvents() ([]Event, error)
+
+	// Методы для Scheduler
+	GetEventsForNotification() ([]Event, error)
+	MarkEventAsNotified(id int64) error
+	CleanOldEvents() (int64, error)
 }

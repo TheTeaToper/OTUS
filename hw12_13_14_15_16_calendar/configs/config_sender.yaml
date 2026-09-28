@@ -1,0 +1,5 @@
+logger:
+  level: debug
+amqp:
+  url: "amqp://calendar_user:calendar_password@localhost:5672/"
+  queueName: Notifications

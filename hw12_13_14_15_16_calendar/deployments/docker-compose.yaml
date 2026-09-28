@@ -10,6 +10,22 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: calendar_rmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: "calendar_user"
+      RABBITMQ_DEFAULT_PASS: "calendar_password"
+    volumes:
+      - rmqdata:/var/lib/rabbitmq/data
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 volumes:
   pgdata:
+  rmqdata:

@@ -121,7 +121,7 @@ func (ss *SqlStorage) DeleteEvent(id int64) error {
 
 func (ss *SqlStorage) ListEvents() ([]storage.Event, error) {
 	ss.logger.Debug("Sql storage. Getting events list...")
-	selectQuery := `SELECT id, title, start_time, end_time, user_id FROM events`
+	selectQuery := `SELECT id, title, start_time, end_time, user_id, notified FROM events`
 	var events []storage.Event
 	err := ss.db.Select(&events, selectQuery)
 	if err != nil {
@@ -129,4 +129,50 @@ func (ss *SqlStorage) ListEvents() ([]storage.Event, error) {
 	}
 	ss.logger.Debug("Sql storage. Select query completed")
 	return events, nil
+}
+
+func (ss *SqlStorage) GetEventsForNotification() ([]storage.Event, error) {
+	ss.logger.Debug("Sql storage. Getting events for notification...")
+	//nolint:lll
+	selectQuery := `SELECT id, title, start_time, end_time, user_id, notified FROM events WHERE start_time <= NOW() and notified = false`
+	var events []storage.Event
+	err := ss.db.Select(&events, selectQuery)
+	if err != nil {
+		return nil, fmt.Errorf("selecting events for notification error: %w", err)
+	}
+	ss.logger.Debug("Sql storage. Select query completed")
+	return events, nil
+}
+
+func (ss *SqlStorage) MarkEventAsNotified(id int64) error {
+	ss.logger.Debug("Sql storage. Marking event as notified [%#v]...", id)
+	updateQuery := `UPDATE events SET notified=true WHERE id=$1`
+	res, err := ss.db.Exec(updateQuery, id)
+	if err != nil {
+		return fmt.Errorf("updating event error: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return storage.ErrEventNotFound
+	}
+	ss.logger.Debug("Sql storage. Event [%#v] marked as notified", id)
+	return nil
+}
+
+func (ss *SqlStorage) CleanOldEvents() (int64, error) {
+	ss.logger.Debug("Sql storage. Cleaning old events...")
+	deleteQuery := `DELETE FROM events WHERE end_time < NOW() - INTERVAL '1 year'`
+	res, err := ss.db.Exec(deleteQuery)
+	if err != nil {
+		return 0, err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return rows, err
+	}
+	ss.logger.Debug("Sql storage. Cleaned events: %v", rows)
+	return rows, nil
 }

@@ -2,6 +2,7 @@ package inmemorystorage
 
 import (
 	"sync"
+	"time"
 
 	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/storage"
 )
@@ -77,4 +78,44 @@ func (ms *InmemoryStorage) ListEvents() ([]storage.Event, error) {
 		list = append(list, event)
 	}
 	return list, nil
+}
+
+func (ms *InmemoryStorage) GetEventsForNotification() ([]storage.Event, error) {
+	ms.mutex.Lock()
+	defer ms.mutex.Unlock()
+
+	list := make([]storage.Event, 0, len(ms.events))
+	for _, event := range ms.events {
+		if event.StartTime.Before(time.Now()) && !event.Notified {
+			list = append(list, event)
+		}
+	}
+	return list, nil
+}
+
+func (ms *InmemoryStorage) MarkEventAsNotified(id int64) error {
+	ms.mutex.Lock()
+	defer ms.mutex.Unlock()
+
+	event, exists := ms.events[id]
+	if !exists {
+		return storage.ErrEventNotFound
+	}
+	event.Notified = true
+	ms.events[id] = event
+	return nil
+}
+
+func (ms *InmemoryStorage) CleanOldEvents() (int64, error) {
+	ms.mutex.Lock()
+	defer ms.mutex.Unlock()
+
+	cleanedCount := 0
+	for _, event := range ms.events {
+		if event.EndTime.Before(time.Now().AddDate(-1, 0, 0)) {
+			delete(ms.events, event.ID)
+			cleanedCount++
+		}
+	}
+	return int64(cleanedCount), nil
 }

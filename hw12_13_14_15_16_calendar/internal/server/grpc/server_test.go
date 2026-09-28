@@ -30,6 +30,9 @@ func (m *mockStorage) DeleteEvent(id int64) error         { return nil }
 func (m *mockStorage) ListEvents() ([]storage.Event, error) {
 	return m.events, nil
 }
+func (m *mockStorage) GetEventsForNotification() ([]storage.Event, error) { return nil, nil }
+func (m *mockStorage) MarkEventAsNotified(id int64) error                 { return nil }
+func (m *mockStorage) CleanOldEvents() (int64, error)                     { return 0, nil }
 
 func TestGRPC_CreateAndListEvents(t *testing.T) {
 	mockLogger := logger.New("DEBUG")

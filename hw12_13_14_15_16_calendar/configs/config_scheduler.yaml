@@ -1,0 +1,10 @@
+logger:
+  level: debug
+storage:
+  type: sql
+  dsn: "host=localhost port=5432 user=calendar_user password=calendar_password dbname=calendar sslmode=disable"
+amqp:
+  url: "amqp://calendar_user:calendar_password@localhost:5672/"
+  queueName: Notifications
+scanningIntervalInSeconds: 10
+cleaningIntervalInHours: 8
