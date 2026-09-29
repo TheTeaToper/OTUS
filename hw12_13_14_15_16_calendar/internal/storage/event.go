@@ -9,4 +9,5 @@ type Event struct {
 	EndTime     time.Time `db:"end_time" json:"end_time"`
 	Description string    `db:"description" json:"description"`
 	User        string    `db:"user_id" json:"user_id"`
+	Notified    bool      `db:"notified" json:"notified"`
 }

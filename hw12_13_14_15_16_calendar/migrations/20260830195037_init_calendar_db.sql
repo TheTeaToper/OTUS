@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS events (
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
     description TEXT,
-    user_id VARCHAR(100) NOT NULL
+    user_id VARCHAR(100) NOT NULL,
+    notified BOOLEAN DEFAULT FALSE NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_start_time ON events(start_time);

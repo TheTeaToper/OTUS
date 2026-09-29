@@ -71,6 +71,7 @@ linters:
             - golang.org/x/sync
             - google.golang.org/grpc
             - google.golang.org/protobuf
+            - github.com/rabbitmq/amqp091-go
         Test:
           files:
             - $test
