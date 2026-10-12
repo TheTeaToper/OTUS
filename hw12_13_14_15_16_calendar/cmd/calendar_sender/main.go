@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/logger"
 	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/queue"
 	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/storage"
+	"github.com/jmoiron/sqlx"
 )
 
 var configFile string
@@ -34,6 +36,13 @@ func main() {
 
 	logger := logger.New(config.Logger.Level)
 
+	db, err := sqlx.Connect("pgx", config.DSN)
+	if err != nil {
+		logger.Error("failed to connect to db: %v", err)
+		return
+	}
+	defer db.Close()
+
 	amqpConsumer, err := queue.NewConsumer(config.Amqp.Url, config.Amqp.QueueName)
 	if err != nil {
 		logger.Error("failed to init amqp consumer: %v", err)
@@ -52,6 +61,12 @@ func main() {
 
 		logger.Info("[NOTIFICATION] User: %s! Event: '%s'. Starting time: %s",
 			event.User, event.Title, event.StartTime.Format("2006-01-02 15:04:05"))
+		_, err = db.ExecContext(ctx,
+			"INSERT INTO notifications_log (user_id, event_title, status, sent_at) VALUES ($1, $2, $3, $4)",
+			event.User, event.Title, "sent", time.Now())
+		if err != nil {
+			logger.Error("failed to log notification to db: %v", err)
+		}
 		return nil
 	}
 

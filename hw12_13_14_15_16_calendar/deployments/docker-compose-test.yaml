@@ -1,0 +1,107 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: calendar_db_test
+    environment:
+      POSTGRES_USER: calendar_user
+      POSTGRES_PASSWORD: calendar_password
+      POSTGRES_DB: calendar
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calendar_user -d calendar"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: calendar_rmq_test
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: "calendar_user"
+      RABBITMQ_DEFAULT_PASS: "calendar_password"
+    volumes:
+      - rmqdata:/var/lib/rabbitmq/data
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  migrator:
+    image: migrate/migrate:v4.15.2
+    container_name: calendar_migrator_test
+    volumes:
+      - ../migrations:/migrations # Монтируем папку с .sql файлами миграций
+    command: -path=/migrations -database "postgres://calendar_user:calendar_password@postgres:5432/calendar?sslmode=disable" up
+    depends_on:
+      postgres:
+        condition: service_healthy
+  
+  # сервис основного API Календаря
+  calendar-api:
+    build:
+      context: ..
+      dockerfile: build/calendar.Dockerfile
+    container_name: calendar_api_test
+    ports:
+      - "8888:8888" # Проброс портов на host согласно ТЗ
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+
+  scheduler:
+    build:
+      context: ..
+      dockerfile: build/scheduler.Dockerfile
+    container_name: calendar_scheduler_test
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      calendar-api:
+        condition: service_started
+
+  sender:
+    build:
+      context: ..
+      dockerfile: build/sender.Dockerfile
+    container_name: calendar_sender_test
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      calendar-api:
+        condition: service_started
+
+  integration-tests:
+    image: golang:1.22-alpine
+    container_name: calendar_integration_tests
+    volumes:
+      - ..:/app
+    WORKDIR: /app
+    environment:
+      - DB_HOST=postgres
+      - API_HOST=calendar-api
+      - RMQ_HOST=rabbitmq
+    command: go test -v ./internal/tests/...
+    depends_on:
+      calendar-api:
+        condition: service_started
+      scheduler:
+        condition: service_started
+      sender:
+        condition: service_started
+
+volumes:
+  pgdata:
+  rmqdata:
