@@ -20,7 +20,7 @@ type EventResponse struct {
 	Events []storage.Event `json:"events"`
 }
 
-//nolint:lll,bodyclose
+//nolint:lll,bodyclose,noctx
 func TestCalendar_IntegrationFlow(t *testing.T) {
 	// Настройка хостов для работы как внутри докера, так и локально
 	dbHost := os.Getenv("DB_HOST")
