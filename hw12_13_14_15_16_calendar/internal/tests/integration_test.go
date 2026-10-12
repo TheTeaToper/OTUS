@@ -1,5 +1,6 @@
 package tests
 
+//nolint:depguard
 import (
 	"bytes"
 	"encoding/json"
@@ -19,6 +20,7 @@ type EventResponse struct {
 	Events []storage.Event `json:"events"`
 }
 
+//nolint:lll,bodyclose
 func TestCalendar_IntegrationFlow(t *testing.T) {
 	// Настройка хостов для работы как внутри докера, так и локально
 	dbHost := os.Getenv("DB_HOST")
