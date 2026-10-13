@@ -4,60 +4,82 @@ DOCKER_IMG="calendar:develop"
 GIT_HASH := $(shell git log --format="%h" -n 1)
 LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
 
-#Postrges
-POSTGRES_USER ?= postgres
-POSTGRES_PASSWORD ?= password
-POSTGRES_DB ?= backend
-POSTGRES_PORT ?= 5435
-POSTGRES_CONTAINER := postgres-calendar
+# #Postrges
+# POSTGRES_USER ?= postgres
+# POSTGRES_PASSWORD ?= password
+# POSTGRES_DB ?= backend
+# POSTGRES_PORT ?= 5435
+# POSTGRES_CONTAINER := postgres-calendar
 
-#Rabbit
-RABBIT_USER ?= rabbit
-RABBIT_PASSWORD ?= password
-RABBIT_PORT ?= 5672
-RABBIT_PORT_UI ?= 15672
-RABBIT_CONTAINER := rabbitmq
+# #Rabbit
+# RABBIT_USER ?= rabbit
+# RABBIT_PASSWORD ?= password
+# RABBIT_PORT ?= 5672
+# RABBIT_PORT_UI ?= 15672
+# RABBIT_CONTAINER := rabbitmq
 
 
-run-postgres:
-	docker run -d --name $(POSTGRES_CONTAINER) \
-	-e POSTGRES_USER=$(POSTGRES_USER) \
-	-e POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
-	-e POSTGRES_DB=$(POSTGRES_DB) \
-	-p $(POSTGRES_PORT):5432 \
-	-v postgres-data:/var/lib/postgresql/data \
-	postgres:latest
+# run-postgres:
+# 	docker run -d --name $(POSTGRES_CONTAINER) \
+# 	-e POSTGRES_USER=$(POSTGRES_USER) \
+# 	-e POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
+# 	-e POSTGRES_DB=$(POSTGRES_DB) \
+# 	-p $(POSTGRES_PORT):5432 \
+# 	-v postgres-data:/var/lib/postgresql/data \
+# 	postgres:latest
 
-run-rabbit:
-	docker run -d --name $(RABBIT_CONTAINER) \
-	-p $(RABBIT_PORT):5672 \
-	-p $(RABBIT_PORT_UI):15672 \
-	-e RABBITMQ_DEFAULT_USER=$(RABBIT_USER) \
-	-e RABBITMQ_DEFAULT_PASS=$(RABBIT_PASSWORD) \
-	rabbitmq:management
+# run-rabbit:
+# 	docker run -d --name $(RABBIT_CONTAINER) \
+# 	-p $(RABBIT_PORT):5672 \
+# 	-p $(RABBIT_PORT_UI):15672 \
+# 	-e RABBITMQ_DEFAULT_USER=$(RABBIT_USER) \
+# 	-e RABBITMQ_DEFAULT_PASS=$(RABBIT_PASSWORD) \
+# 	rabbitmq:management
 
+# Локальная сборка бинарников на хост-машине
 build:
 	go build -v -o ./bin/calendar -ldflags "$(LDFLAGS)" ./cmd/calendar
 	go build -v -o ./bin/calendar_scheduler -ldflags "$(LDFLAGS)" ./cmd/calendar_scheduler
 	go build -v -o ./bin/calendar_sender -ldflags "$(LDFLAGS)" ./cmd/calendar_sender
 
+# Локальный запуск
 run: build
 	$(BIN) -config ./configs/config.yaml
 
-build-img:
-	docker build \
-		--build-arg=LDFLAGS="$(LDFLAGS)" \
-		-t $(DOCKER_IMG) \
-		-f build/Dockerfile .
+# build-img:
+# 	docker build \
+# 		--build-arg=LDFLAGS="$(LDFLAGS)" \
+# 		-t $(DOCKER_IMG) \
+# 		-f build/Dockerfile .
 
-run-img: build-img
-	docker run $(DOCKER_IMG)
+# run-img: build-img
+# 	docker run $(DOCKER_IMG)
 
+# Просмотр версии
 version: build
 	$(BIN) version
 
+# Юнит-тестирование (не смешивается с интеграционными тестами)
 test:
-	go test -v -race ./...
+	go test -v -race $(shell go list ./... | grep -v /tests)
+# 	go test -v -race ./...
+
+# Поднять весь проект (Postgres, RabbitMQ, Миграции, API, Scheduler, Sender)
+up:
+	LDFLAGS="$(LDFLAGS)" docker-compose -f deployments/docker-compose.yaml up --build -d
+
+# Полностью остановить проект и очистить Volumes
+down:
+	docker-compose -f deployments/docker-compose.yaml down -v
+
+# Запуск интеграционных тестов
+# Поднимает тестовое окружение, выполняет тесты, возвращает код ответа и зачищает среду
+integration-tests:
+	@echo "Running integration tests..."
+	LDFLAGS="$(LDFLAGS)" docker-compose -f deployments/docker-compose-test.yaml up --build --abort-on-container-exit --exit-code-from integration-tests
+	@echo "Cleaning up test environment..."
+	docker-compose -f deployments/docker-compose-test.yaml down -v
+
 
 install-lint-deps:
 	(which golangci-lint > /dev/null) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.13.2
@@ -70,4 +92,4 @@ generate:
 	mkdir -p api
 	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative api/EventsService.proto
 
-.PHONY: build run build-img run-img version test lint run-postgres run-rabbit install-lint-deps generate
+.PHONY: build run version test lint install-lint-deps generate up down integration-tests

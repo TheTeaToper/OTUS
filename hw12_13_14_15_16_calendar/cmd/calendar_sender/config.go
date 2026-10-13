@@ -13,6 +13,7 @@ type Config struct {
 	Amqp AmqpConf `yaml:"amqp"`
 	// ScanningIntervalInSeconds int64    `yaml:"scanningIntervalInSeconds"`
 	// CleaningIntervalInHours   int64    `yaml:"cleaningIntervalInHours"`
+	DSN string `yaml:"dsn"`
 }
 
 type LoggerConf struct {
@@ -37,6 +38,7 @@ func NewConfig() Config {
 		Amqp: AmqpConf{Url: "amqp://guest:guest@localhost:5672/", QueueName: "Notifications"},
 		// ScanningIntervalInSeconds: 10,
 		// CleaningIntervalInHours:   24,
+		DSN: "host=postgres port=5432 user=calendar_user password=calendar_password dbname=calendar sslmode=disable",
 	}
 }
 

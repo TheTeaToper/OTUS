@@ -10,6 +10,12 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calendar_user -d calendar"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: calendar_rmq
@@ -26,6 +32,59 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  
+  migrator:
+    image: migrate/migrate:v4.15.2
+    container_name: calendar_migrator
+    volumes:
+      - ../migrations:/migrations # Монтируем папку с .sql файлами миграций
+    command: -path=/migrations -database "postgres://calendar_user:calendar_password@postgres:5432/calendar?sslmode=disable" up
+    depends_on:
+      postgres:
+        condition: service_healthy
+  
+  # сервис основного API Календаря
+  calendar-api:
+    build:
+      context: ..
+      dockerfile: build/calendar.Dockerfile
+    container_name: calendar_api
+    ports:
+      - "8888:8888" # Проброс портов на host согласно ТЗ
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+
+  # сервис Планировщика
+  scheduler:
+    build:
+      context: ..
+      dockerfile: build/scheduler.Dockerfile
+    container_name: calendar_scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      calendar-api:
+        condition: service_started
+
+  # сервис Рассыльщика сообщений
+  sender:
+    build:
+      context: ..
+      dockerfile: build/sender.Dockerfile
+    container_name: calendar_sender
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      calendar-api:
+        condition: service_started
+
 volumes:
   pgdata:
   rmqdata:

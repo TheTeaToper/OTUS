@@ -1,0 +1,6 @@
+logger:
+  level: debug
+amqp:
+  url: "amqp://calendar_user:calendar_password@rabbitmq:5672/"
+  queueName: Notifications
+dsn: "host=postgres port=5432 user=calendar_user password=calendar_password dbname=calendar sslmode=disable"

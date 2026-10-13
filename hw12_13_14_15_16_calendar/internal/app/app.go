@@ -25,6 +25,9 @@ func New(logger *logger.Logger, storage storage.Storage) *App {
 }
 
 func (a *App) CreateEvent(ctx context.Context, event *storage.Event) error {
+	if event.StartTime.After(event.EndTime) {
+		return fmt.Errorf("StartTime cannot be greater then EndTime")
+	}
 	a.logger.Debug("Создание события %s", event.Title)
 	return a.storage.CreateEvent(event)
 }

@@ -1,0 +1,8 @@
+logger:
+  level: debug
+storage:
+  type: sql
+  dsn: "host=postgres port=5432 user=calendar_user password=calendar_password dbname=calendar sslmode=disable"
+server:
+  host: 0.0.0.0
+  port: "8888"
