@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.api.name }}
+  labels:
+    app: {{ .Values.api.name }}
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.api.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.api.name }}
+    spec:
+      containers:
+        - name: {{ .Values.api.name }}
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8888
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/calendar
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: calendar-config
+            items:
+              - key: config_api.yaml
+                path: config.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.scheduler.name }}
+  labels:
+    app: {{ .Values.scheduler.name }}
+spec:
+  replicas: {{ .Values.scheduler.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.scheduler.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.scheduler.name }}
+    spec:
+      containers:
+        - name: {{ .Values.scheduler.name }}
+          image: "{{ .Values.scheduler.image.repository }}:{{ .Values.scheduler.image.tag }}"
+          imagePullPolicy: {{ .Values.scheduler.image.pullPolicy }}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/calendar
+          resources:
+            {{- toYaml .Values.scheduler.resources | nindent 12 }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: calendar-config
+            items:
+              - key: config_scheduler.yaml
+                path: config.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.sender.name }}
+  labels:
+    app: {{ .Values.sender.name }}
+spec:
+  replicas: {{ .Values.sender.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.sender.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.sender.name }}
+    spec:
+      containers:
+        - name: {{ .Values.sender.name }}
+          image: "{{ .Values.sender.image.repository }}:{{ .Values.sender.image.tag }}"
+          imagePullPolicy: {{ .Values.sender.image.pullPolicy }}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/calendar
+          resources:
+            {{- toYaml .Values.sender.resources | nindent 12 }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: calendar-config
+            items:
+              - key: config_sender.yaml
+                path: config.yaml

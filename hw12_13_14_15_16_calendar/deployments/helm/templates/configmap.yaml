@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: calendar-config
+data:
+  config_api.yaml: |
+    logger:
+      level: debug
+    storage:
+      type: sql
+      dsn: "host=postgres-service port=5432 user=calendar_user password=calendar_password dbname=calendar sslmode=disable"
+    server:
+      host: 0.0.0.0
+      port: "8888"
+  config_scheduler.yaml: |
+    logger:
+      level: debug
+    storage:
+      type: sql
+      dsn: "host=postgres-service port=5432 user=calendar_user password=calendar_password dbname=calendar sslmode=disable"
+    amqp:
+      url: "amqp://calendar_user:calendar_password@rabbitmq-service:5672/"
+      queueName: Notifications
+    scanningIntervalInSeconds: 10
+    cleaningIntervalInHours: 8
+  config_sender.yaml: |
+    logger:
+      level: debug
+    amqp:
+      url: "amqp://calendar_user:calendar_password@rabbitmq-service:5672/"
+      queueName: Notifications
+    dsn: "host=postgres-service port=5432 user=calendar_user password=calendar_password dbname=calendar sslmode=disable"

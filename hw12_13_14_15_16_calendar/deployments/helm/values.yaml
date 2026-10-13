@@ -1,0 +1,83 @@
+global:
+  environment: "production"
+
+# Конфигурация для Postgresql и RMQ
+config:
+  db:
+    host: "postgres-service"
+    port: 5432
+    user: "calendar_user"
+    password: "calendar_password"
+    database: "calendar"
+  amqp:
+    host: "rabbitmq-service"
+    port: 5672
+    user: "calendar_user"
+    password: "calendar_password"
+    queueName: "Notifications"
+
+# Компонент 1: Основной API (HTTP / gRPC)
+api:
+  name: calendar-api
+  replicaCount: 1
+  image:
+    repository: calendar
+    tag: "develop"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    httpPort: 8888
+    grpcPort: 8889
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Компонент 2: Планировщик
+scheduler:
+  name: calendar-scheduler
+  replicaCount: 1
+  image:
+    repository: calendar-scheduler
+    tag: "develop"
+    pullPolicy: IfNotPresent
+  scanningIntervalInSeconds: 10
+  cleaningIntervalInHours: 8
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Компонент 3: Рассыльщик
+sender:
+  name: calendar-sender
+  replicaCount: 1
+  image:
+    repository: calendar-sender
+    tag: "develop"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Маршрутизация (Ingress) для API
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: calendar.local
+      paths:
+        - path: /
+          pathType: Prefix
