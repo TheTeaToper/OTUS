@@ -12,6 +12,7 @@ import (
 	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/logger"
 	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/queue"
 	"github.com/TheTeaToper/OTUS/hw12_13_14_15_16_calendar/internal/storage"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 )
 
