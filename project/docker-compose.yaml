@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  antibruteforce:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: antibruteforce_server
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    volumes:
+      - ./configs:/root/configs
+    networks:
+      - ab_network
+
+networks:
+  ab_network:
+    driver: bridge

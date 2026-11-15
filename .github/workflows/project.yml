@@ -1,0 +1,74 @@
+name: Project CI
+
+on:
+  push:
+    branches:
+      - master
+      - project
+    paths:
+      - 'project/**'
+      - '.github/workflows/project.yml'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'project/**'
+
+env:
+  GO111MODULE: "on"
+  GOLANG_VERSION: "1.25.0"
+  GOLANGCI_LINT_VERSION: v2.13.2
+
+jobs:
+  lint:
+    name: Lint Project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          working-directory: project
+          args: --config=.golangci.yml
+
+  test:
+    name: Unit Tests (-race -count 100)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+          cache-dependency-path: project/go.sum
+
+      - name: Run unit tests
+        run: go test -race -count 100 ./...
+        working-directory: project
+
+  build:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+          cache-dependency-path: project/go.sum
+
+      - name: Build service and CLI
+        run: make build
+        working-directory: project

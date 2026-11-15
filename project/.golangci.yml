@@ -1,0 +1,80 @@
+version: "2"
+
+run:
+  build-tags:
+    - bench
+    - ""
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - asciicheck
+    - bodyclose
+    - copyloopvar
+    - dogsled
+    - dupl
+    - durationcheck
+    - errorlint
+    - exhaustive
+    - funlen
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - goheader
+    - goprintffuncname
+    - gosec
+    - govet
+    - importas
+    - ineffassign
+    - lll
+    - makezero
+    - misspell
+    - nestif
+    - nilerr
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - staticcheck
+    - tagliatelle
+    - thelper
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+
+  settings:
+    gocognit:
+      min-complexity: 40
+    funlen:
+      lines: 150
+      statements: 80
+    tagliatelle:
+      case:
+        rules:
+          yaml: snake
+
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters:
+          - dupl
+          - errcheck
+          - gocyclo
+          - gosec
+      - linters:
+          - gosec
+        text: "(G103|G104|G115|G204|G301|G302|G304|G307|G404)"
+      - linters:
+          - errcheck
+        text: "(?i)Error return value of .*(Close|Flush).* is not checked"
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt

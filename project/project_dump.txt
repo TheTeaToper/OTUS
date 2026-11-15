@@ -1,0 +1,1253 @@
+
+==================== FILE: ./cmd/cli/main.go ====================
+
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+
+	"github.com/spf13/cobra"
+)
+
+const defaultBaseURL = "http://localhost:8080/api/v1"
+
+var (
+	baseURL string
+	login   string
+	ip      string
+	subnet  string
+)
+
+func main() {
+	rootCmd := &cobra.Command{
+		Use:   "ab-admin",
+		Short: "CLI утилита для администрирования сервиса Анти-брутфорс",
+	}
+
+	// Глобальный флаг для изменения адреса сервера при необходимости
+	rootCmd.PersistentFlags().StringVar(&baseURL, "url", defaultBaseURL, "Базовый URL API сервиса")
+
+	// Команда сброса бакетов
+	resetCmd := &cobra.Command{
+		Use:   "reset",
+		Short: "Сбросить бакеты для указанного логина и IP",
+		Run:   runReset,
+	}
+	resetCmd.Flags().StringVar(&login, "login", "", "Логин для сброса (обязательно)")
+	resetCmd.Flags().StringVar(&ip, "ip", "", "IP для сброса (обязательно)")
+	_ = resetCmd.MarkFlagRequired("login")
+	_ = resetCmd.MarkFlagRequired("ip")
+
+	// Команды для Whitelist
+	whitelistCmd := &cobra.Command{Use: "whitelist", Short: "Управление белым списком"}
+	addWhiteCmd := &cobra.Command{Use: "add", Short: "Добавить подсеть в whitelist", Run: runAddWhitelist}
+	removeWhiteCmd := &cobra.Command{Use: "remove", Short: "Удалить подсеть из whitelist", Run: runRemoveWhitelist}
+	addWhiteCmd.Flags().StringVar(&subnet, "subnet", "", "Подсеть в формате IP/Маска (например, 192.1.1.0/25)")
+	removeWhiteCmd.Flags().StringVar(&subnet, "subnet", "", "Подсеть в формате IP/Маска (например, 192.1.1.0/25)")
+	_ = addWhiteCmd.MarkFlagRequired("subnet")
+	_ = removeWhiteCmd.MarkFlagRequired("subnet")
+	whitelistCmd.AddCommand(addWhiteCmd, removeWhiteCmd)
+
+	// Команды для Blacklist
+	blacklistCmd := &cobra.Command{Use: "blacklist", Short: "Управление черным списком"}
+	addBlackCmd := &cobra.Command{Use: "add", Short: "Добавить подсеть в blacklist", Run: runAddBlacklist}
+	removeBlackCmd := &cobra.Command{Use: "remove", Short: "Удалить подсеть из blacklist", Run: runRemoveBlacklist}
+	addBlackCmd.Flags().StringVar(&subnet, "subnet", "", "Подсеть в формате IP/Маска (например, 192.1.1.0/25)")
+	removeBlackCmd.Flags().StringVar(&subnet, "subnet", "", "Подсеть в формате IP/Маска (например, 192.1.1.0/25)")
+	_ = addBlackCmd.MarkFlagRequired("subnet")
+	_ = removeBlackCmd.MarkFlagRequired("subnet")
+	blacklistCmd.AddCommand(addBlackCmd, removeBlackCmd)
+
+	// Объединяем команды
+	rootCmd.AddCommand(resetCmd, whitelistCmd, blacklistCmd)
+
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+// --- Обработчики команд ---
+
+func runReset(cmd *cobra.Command, args []string) {
+	body, _ := json.Marshal(map[string]string{"login": login, "ip": ip})
+	sendRequest(http.MethodPost, baseURL+"/buckets/reset", body, "Бакеты успешно сброшены")
+}
+
+func runAddWhitelist(cmd *cobra.Command, args []string) {
+	body, _ := json.Marshal(map[string]string{"subnet": subnet})
+	sendRequest(http.MethodPost, baseURL+"/whitelist", body, fmt.Sprintf("Подсеть %s добавлена в whitelist", subnet))
+}
+
+func runRemoveWhitelist(cmd *cobra.Command, args []string) {
+	body, _ := json.Marshal(map[string]string{"subnet": subnet})
+	sendRequest(http.MethodDelete, baseURL+"/whitelist", body, fmt.Sprintf("Подсеть %s удалена из whitelist", subnet))
+}
+
+func runAddBlacklist(cmd *cobra.Command, args []string) {
+	body, _ := json.Marshal(map[string]string{"subnet": subnet})
+	sendRequest(http.MethodPost, baseURL+"/blacklist", body, fmt.Sprintf("Подсеть %s добавлена в blacklist", subnet))
+}
+
+func runRemoveBlacklist(cmd *cobra.Command, args []string) {
+	body, _ := json.Marshal(map[string]string{"subnet": subnet})
+	sendRequest(http.MethodDelete, baseURL+"/blacklist", body, fmt.Sprintf("Подсеть %s удалена из blacklist", subnet))
+}
+
+// Вспомогательная функция отправки запросов на сервер
+func sendRequest(method, url string, body []byte, successMsg string) {
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
+	if err != nil {
+		fmt.Printf("❌ Ошибка создания запроса: %v\n", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("❌ Сервер недоступен: %v. Сначала запустите основной сервис.\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		fmt.Printf("✅ %s\n", successMsg)
+	} else {
+		type errResp struct{ Error string }
+		var e errResp
+		_ = json.NewDecoder(resp.Body).Decode(&e)
+		if e.Error != "" {
+			fmt.Printf("❌ Ошибка сервера (%d): %s\n", resp.StatusCode, e.Error)
+		} else {
+			fmt.Printf("❌ Сервер вернул ошибку со статусом: %d\n", resp.StatusCode)
+		}
+	}
+}
+
+==================== FILE: ./cmd/main.go ====================
+
+package main
+
+import (
+	"context"
+	"errors"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	httpserver "github.com/TheTeaToper/OTUS/project/internal/server/http"
+
+	"github.com/TheTeaToper/OTUS/project/internal/app"
+	"github.com/TheTeaToper/OTUS/project/internal/config"
+)
+
+func main() {
+	log.Println("Инициализация сервиса Анти-брутфорс...")
+
+	// 1. Загружаем конфигурацию
+	configPath := "configs/config.yaml"
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		log.Fatalf("Ошибка загрузки конфигурации: %v", err)
+	}
+	log.Printf("Конфигурация успешно загружена из %s", configPath)
+
+	// 2. Инициализируем бизнес-логику (сервис)
+	appConfig := app.Config{
+		LoginLimit:    cfg.Limits.LoginLimit,
+		PasswordLimit: cfg.Limits.PasswordLimit,
+		IpLimit:       cfg.Limits.IpLimit,
+	}
+	service := app.NewAntibruteforceService(appConfig, cfg.Limits.BucketTTL)
+
+	// 3. Создаем HTTP сервер
+	handler := httpserver.NewServer(service)
+	server := &http.Server{
+		Addr:         cfg.Server.Port,
+		Handler:      handler,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
+	// Канал для перехвата системных сигналов остановки (Ctrl+C, kill)
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	// 4. Запускаем сервер в отдельной горутине
+	go func() {
+		log.Printf("HTTP сервер запущен на порту %s", cfg.Server.Port)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("Ошибка работы HTTP сервера: %v", err)
+		}
+	}()
+
+	// Ждем сигнал остановки
+	<-stop
+	log.Println("Получен сигнал остановки. Завершение работы...")
+
+	// Плавное завершение работы (даем серверу 5 секунд на закрытие текущих соединений)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Ошибка при плавном завершении работы сервера: %v", err)
+	}
+
+	log.Println("Сервис Анти-брутфорс успешно остановлен.")
+}
+
+==================== FILE: ./docker-compose.yaml ====================
+
+version: '3.8'
+
+services:
+  antibruteforce:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: antibruteforce_server
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    volumes:
+      - ./configs:/root/configs
+    networks:
+      - ab_network
+
+networks:
+  ab_network:
+    driver: bridge
+
+==================== FILE: ./go.mod ====================
+
+module github.com/TheTeaToper/OTUS/project
+
+go 1.23.0
+
+require (
+	github.com/spf13/cobra v1.10.2
+	gopkg.in/yaml.v3 v3.0.1
+)
+
+require (
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
+)
+
+==================== FILE: ./Dockerfile ====================
+
+# --- Этап 1: Сборка приложения ---
+FROM golang:1.23-alpine AS builder
+
+# Устанавливаем необходимые системные утилиты для сборки (если потребуются)
+RUN apk add --no-cache git make
+
+WORKDIR /app
+
+# Сначала копируем файлы зависимостей для кэширования слоев Docker
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Копируем исходный код проекта
+COPY . .
+
+# Собираем сервер и CLI утилиту (статическая линковка, без CGO)
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o antibruteforce ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o ab-admin ./cmd/cli/main.go
+
+# --- Этап 2: Финальный легковесный образ ---
+FROM alpine:3.19
+
+RUN apk add --no-cache ca-certificates tzdata
+
+WORKDIR /root/
+
+# Копируем скомпилированные бинарники из этапа сборки
+COPY --from=builder /app/antibruteforce .
+COPY --from=builder /app/ab-admin .
+
+# Копируем конфигурационные файлы
+COPY --from=builder /app/configs ./configs
+
+# Открываем порт, на котором работает сервер
+EXPOSE 8080
+
+# Команда по умолчанию для запуска контейнера
+CMD ["./antibruteforce"]
+
+==================== FILE: ./Makefile ====================
+
+.PHONY: build run stop test clean lint
+
+# Переменные
+BINARY_NAME=antibruteforce
+CLI_NAME=ab-admin
+
+# Сборка проекта локально
+build:
+	@echo "==> Сборка локальных бинарников..."
+	go build -o $(BINARY_NAME) ./cmd/main.go
+	go build -o $(CLI_NAME) ./cmd/cli/main.go
+
+# Запуск проекта в Docker (как требует ТЗ)
+run:
+	@echo "==> Запуск сервиса в Docker Compose..."
+	docker compose up --build -d
+
+# Остановка контейнеров
+stop:
+	@echo "==> Остановка контейнеров Docker..."
+	docker compose down
+
+# Автоматический запуск тестов в правильном окружении
+test:
+	@echo "==> Поднимаем сервис в Docker для интеграционных тестов..."
+	docker compose up --build -d
+	@echo "==> Ожидаем инициализацию сервера (3 секунды)..."
+	@sleep 3
+	@echo "==> Запуск всех тестов (Unit + Integration)..."
+	go test -v -race ./...
+	@echo "==> Тесты завершены. Тушим контейнеры..."
+	docker compose down
+
+# Очистка собранных файлов
+clean:
+	@echo "==> Очистка временных файлов..."
+	rm -f $(BINARY_NAME) $(CLI_NAME)
+	docker compose down --v --rmi local 2>/dev/null || true
+
+# Проверка кода линтером (опционально, версия из вашего go.mod/ТЗ)
+lint:
+	@echo "==> Запуск golangci-lint..."
+	golangci-lint run ./...
+
+==================== FILE: ./internal/app/antibruteforce.go ====================
+
+package app
+
+import (
+	"time"
+
+	"github.com/TheTeaToper/OTUS/project/internal/limiter"
+	"github.com/TheTeaToper/OTUS/project/internal/subnets"
+)
+
+type Config struct {
+	// N
+	LoginLimit int
+	// M
+	PasswordLimit int
+	// K
+	IpLimit int
+}
+
+type AntibruteforceService struct {
+	config           Config
+	blackList        *subnets.Subnets
+	whiteList        *subnets.Subnets
+	loginsManager    *limiter.Manager
+	passwordsManager *limiter.Manager
+	ipsManager       *limiter.Manager
+}
+
+func NewAntibruteforceService(cfg Config, bucketTtl time.Duration) *AntibruteforceService {
+	return &AntibruteforceService{
+		config:           cfg,
+		blackList:        subnets.NewSubnets(),
+		whiteList:        subnets.NewSubnets(),
+		loginsManager:    limiter.NewManager(bucketTtl),
+		passwordsManager: limiter.NewManager(bucketTtl),
+		ipsManager:       limiter.NewManager(bucketTtl),
+	}
+}
+
+func (s *AntibruteforceService) ValidateAuthorization(login, password, ip string) bool {
+	// Проверка blackSubnets в приоритете
+	if s.blackList.Contains(ip) {
+		return false
+	}
+	if s.whiteList.Contains(ip) {
+		return true
+	}
+
+	loginBucket := s.loginsManager.GetBucket(login, s.config.LoginLimit)
+	passwordBucket := s.passwordsManager.GetBucket(password, s.config.PasswordLimit)
+	ipBucket := s.ipsManager.GetBucket(ip, s.config.IpLimit)
+
+	loginAllowed := loginBucket.Allow()
+	passwordAllowed := passwordBucket.Allow()
+	ipAllowed := ipBucket.Allow()
+
+	return loginAllowed && passwordAllowed && ipAllowed
+}
+
+// Сброс бакетов для логина и IP
+func (s *AntibruteforceService) ResetBuckets(login, ip string) {
+	s.loginsManager.ResetKey(login)
+	s.ipsManager.ResetKey(ip)
+}
+
+// Методы-прослойки для управления списками (вызываются из API/CLI)
+func (s *AntibruteforceService) AddToWhitelist(cidr string) error { return s.whiteList.Add(cidr) }
+
+func (s *AntibruteforceService) RemoveFromWhitelist(cidr string) error {
+	return s.whiteList.Delete(cidr)
+}
+func (s *AntibruteforceService) AddToBlacklist(cidr string) error { return s.blackList.Add(cidr) }
+func (s *AntibruteforceService) RemoveFromBlacklist(cidr string) error {
+	return s.blackList.Delete(cidr)
+}
+
+==================== FILE: ./internal/limiter/bucket.go ====================
+
+package limiter
+
+import (
+	"sync"
+	"time"
+)
+
+type Bucket struct {
+	mutex sync.Mutex
+	// Сколько токенов добавляется в секунду (Лимит / 60)
+	rate float64
+	// Максимальное количество токенов (равно N, M или K)
+	capacity float64
+	// Текущее количество доступных токенов
+	tokens float64
+	// Время последнего обновления токенов
+	lastRefreshed time.Time
+}
+
+func NewBucket(limitPerMinute int) *Bucket {
+	return &Bucket{
+		rate:          float64(limitPerMinute) / 60.0,
+		capacity:      float64(limitPerMinute),
+		tokens:        float64(limitPerMinute),
+		lastRefreshed: time.Now(),
+	}
+}
+
+func (b *Bucket) Allow() bool {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	now := time.Now()
+	elapsed := now.Sub(b.lastRefreshed).Seconds()
+
+	if elapsed > 0 {
+		b.tokens += elapsed * b.rate
+		if b.tokens > b.capacity {
+			b.tokens = b.capacity
+		}
+		b.lastRefreshed = now
+	}
+
+	if b.tokens >= 1.0 {
+		b.tokens -= 1.0
+		return true
+	}
+	return false
+}
+
+func (b *Bucket) Reset() {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	b.tokens = b.capacity
+	b.lastRefreshed = time.Now()
+}
+
+==================== FILE: ./internal/limiter/bucket_test.go ====================
+
+package limiter
+
+import "testing"
+
+func TestBucket_RateLimiting(t *testing.T) {
+	// Создаем бакет: 3 запроса в минуту
+	b := NewBucket(3)
+
+	// 1-3 запросы должны пройти успешно
+	for i := 1; i <= 3; i++ {
+		if !b.Allow() {
+			t.Fatalf("Запрос %d должен был пройти успешно", i)
+		}
+	}
+
+	// 4-й запрос подряд должен заблокироваться
+	if b.Allow() {
+		t.Fatal("4-й запрос подряд должен быть заблокирован лимитером")
+	}
+
+	// Сбрасываем бакет вручную
+	b.Reset()
+
+	// После сброса запрос снова должен пройти
+	if !b.Allow() {
+		t.Fatal("После сброса бакета запрос должен быть разрешен")
+	}
+}
+
+==================== FILE: ./internal/limiter/manager.go ====================
+
+package limiter
+
+import (
+	"sync"
+	"time"
+)
+
+type Manager struct {
+	mutex   sync.RWMutex
+	buckets map[string]*Bucket
+	// Время жизни неактивного бакета (например, 5-10 минут)
+	ttl time.Duration
+}
+
+func NewManager(ttl time.Duration) *Manager {
+	manager := &Manager{
+		buckets: make(map[string]*Bucket),
+		ttl:     ttl,
+	}
+	// Опционально: здесь можно запустить тикер для периодической очистки старых бакетов
+	return manager
+}
+
+func (m *Manager) GetBucket(key string, limit int) *Bucket {
+	m.mutex.RLock()
+	bucket, exists := m.buckets[key]
+	m.mutex.RUnlock()
+
+	if exists {
+		return bucket
+	}
+
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	// Двойная проверка на случай race condition
+	if bucket, exists = m.buckets[key]; exists {
+		return bucket
+	}
+
+	bucket = NewBucket(limit)
+	m.buckets[key] = bucket
+	return bucket
+}
+
+// ResetKey удаляет/сбрасывает бакеты для конкретного ключа (нужно для метода Сброса)
+func (m *Manager) ResetKey(key string) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	delete(m.buckets, key)
+}
+
+==================== FILE: ./internal/config/config.go ====================
+
+package config
+
+import (
+	"fmt"
+	"os"
+	"time"
+
+	"gopkg.in/yaml.v3"
+)
+
+// Config объединяет все настройки приложения
+type Config struct {
+	Server struct {
+		Port string `yaml:"port"`
+	} `yaml:"server"`
+
+	Limits struct {
+		LoginLimit    int           `yaml:"login_limit"`    // N
+		PasswordLimit int           `yaml:"password_limit"` // M
+		IpLimit       int           `yaml:"ip_limit"`       // K
+		BucketTTL     time.Duration `yaml:"bucket_ttl"`     // Время жизни неактивных бакетов
+	} `yaml:"limits"`
+}
+
+// Load считывает конфигурацию из указанного файла
+func Load(path string) (*Config, error) {
+	cfg := &Config{}
+
+	// Устанавливаем дефолтные значения на случай, если в файле что-то пропущено
+	cfg.Server.Port = ":8080"
+	cfg.Limits.LoginLimit = 10
+	cfg.Limits.PasswordLimit = 100
+	cfg.Limits.IpLimit = 1000
+	cfg.Limits.BucketTTL = 10 * time.Minute
+
+	// Проверяем наличие файла
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open config file: %w", err)
+	}
+	defer file.Close()
+
+	// Декодируем YAML
+	decoder := yaml.NewDecoder(file)
+	if err := decoder.Decode(cfg); err != nil {
+		return nil, fmt.Errorf("failed to decode config YAML: %w", err)
+	}
+
+	return cfg, nil
+}
+
+==================== FILE: ./internal/tests/integration_test.go ====================
+
+package tests
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"testing"
+	"time"
+)
+
+const baseURL = "http://localhost:8080/api/v1"
+
+// Структуры DTO для отправки запросов
+type AuthRequest struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+	IP       string `json:"ip"`
+}
+
+type AuthResponse struct {
+	OK bool `json:"ok"`
+}
+
+type CidrRequest struct {
+	Subnet string `json:"subnet"`
+}
+
+type ResetRequest struct {
+	Login string `json:"login"`
+	IP    string `json:"ip"`
+}
+
+func TestIntegration_AntiBruteForce(t *testing.T) {
+	// Перед запуском тестов проверяем, доступен ли сервер
+	client := &http.Client{Timeout: 2 * time.Second}
+	_, err := client.Get(baseURL + "/auth/validate")
+	if err != nil {
+		t.Skip("Пропуск интеграционных тестов: сервер Анти-брутфорс не запущен на порту 8080. Запустите 'make run' перед тестированием.")
+	}
+
+	// Данные для тестов
+	testLogin := "integration_user"
+	testPassword := "secure_pass"
+	testIP := "192.168.1.10"
+	testSubnet := "192.168.1.0/24"
+
+	// Убедимся, что бакеты чистые перед началом
+	resetBuckets(t, client, testLogin, testIP)
+
+	// ==========================================
+	// 1. ТЕСТ: Базовая проверка лимитов API
+	// ==========================================
+	t.Run("Test Rate Limits via API", func(t *testing.T) {
+		// По дефолту лимит логина N=10 запросов в минуту.
+		// Сделаем 10 успешных запросов подряд.
+		for i := 1; i <= 10; i++ {
+			resp := validateAuth(t, client, testLogin, testPassword, testIP)
+			if !resp.OK {
+				t.Fatalf("Запрос %d должен был вернуть ok=true, лимит еще не исчерпан", i)
+			}
+		}
+
+		// 11-й запрос должен заблокироваться
+		respFails := validateAuth(t, client, testLogin, testPassword, testIP)
+		if respFails.OK {
+			t.Error("11-й запрос подряд должен был вернуть ok=false (превышен лимит)")
+		}
+	})
+
+	// ==========================================
+	// 2. ТЕСТ: Работа со списками (Blacklist)
+	// ==========================================
+	t.Run("Test Blacklist API", func(t *testing.T) {
+		// Добавляем подсеть в черный список
+		modifyList(t, client, "POST", "/blacklist", testSubnet)
+
+		// Другой пользователь с IP из этой подсети должен сразу получить блок (ok=false)
+		resp := validateAuth(t, client, "other_user", "some_pass", "192.168.1.55")
+		if resp.OK {
+			t.Error("Пользователь из Blacklist подсети должен быть заблокирован")
+		}
+
+		// Удаляем подсеть из черного списка
+		modifyList(t, client, "DELETE", "/blacklist", testSubnet)
+
+		// Теперь запрос оттуда должен пройти (бакет для нового юзера чистый)
+		respAfterDelete := validateAuth(t, client, "other_user", "some_pass", "192.168.1.55")
+		if !respAfterDelete.OK {
+			t.Error("После удаления подсети из Blacklist запрос должен пройти успешно")
+		}
+	})
+
+	// ==========================================
+	// 3. ТЕСТ: Работа со списками (Whitelist)
+	// ==========================================
+	t.Run("Test Whitelist API", func(t *testing.T) {
+		// Наш основной testLogin сейчас заблокирован лимитерами из первого теста.
+		// Добавим его подсеть в Whitelist.
+		modifyList(t, client, "POST", "/whitelist", testSubnet)
+
+		// Запрос должен безусловно пройти (ok=true), несмотря на переполненные бакеты
+		resp := validateAuth(t, client, testLogin, testPassword, testIP)
+		if !resp.OK {
+			t.Error("Запрос с IP из Whitelist должен успешно проходить, даже если лимиты бакетов исчерпаны")
+		}
+
+		// Чистим за собой вайтлист
+		modifyList(t, client, "DELETE", "/whitelist", testSubnet)
+	})
+
+	// ==========================================
+	// 4. ТЕСТ: Сброс бакетов (Reset API)
+	// ==========================================
+	t.Run("Test Reset Buckets API", func(t *testing.T) {
+		// Наш IP убран из вайтлиста, бакеты все еще переполнены -> запрос заблокирован
+		respBlocked := validateAuth(t, client, testLogin, testPassword, testIP)
+		if respBlocked.OK {
+			t.Error("Запрос должен быть заблокирован перед сбросом")
+		}
+
+		// Вызываем метод сброса бакетов через API
+		resetBuckets(t, client, testLogin, testIP)
+
+		// Теперь запрос снова должен стать успешным
+		respUnblocked := validateAuth(t, client, testLogin, testPassword, testIP)
+		if !respUnblocked.OK {
+			t.Error("После вызова Reset API бакеты должны очиститься, а запрос — пройти")
+		}
+	})
+}
+
+// --- Хелперы для выполнения HTTP запросов к API ---
+
+func validateAuth(t *testing.T, client *http.Client, login, password, ip string) AuthResponse {
+	body, _ := json.Marshal(AuthRequest{Login: login, Password: password, IP: ip})
+	req, _ := http.NewRequest("POST", baseURL+"/auth/validate", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Ошибка отправки запроса на валидацию: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Сервер вернул статус %d при валидации", resp.StatusCode)
+	}
+
+	var result AuthResponse
+	_ = json.NewDecoder(resp.Body).Decode(&result)
+	return result
+}
+
+func modifyList(t *testing.T, client *http.Client, method, endpoint, subnet string) {
+	body, _ := json.Marshal(CidrRequest{Subnet: subnet})
+	req, _ := http.NewRequest(method, baseURL+endpoint, bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Ошибка изменения списка %s: %v", endpoint, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Сервер вернул статус %d при изменении списка %s", resp.StatusCode, endpoint)
+	}
+}
+
+func resetBuckets(t *testing.T, client *http.Client, login, ip string) {
+	body, _ := json.Marshal(ResetRequest{Login: login, IP: ip})
+	req, _ := http.NewRequest("POST", baseURL+"/buckets/reset", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Ошибка сброса бакетов: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Сервер вернул статус %d при сбросе бакетов", resp.StatusCode)
+	}
+}
+
+==================== FILE: ./internal/server/http/server.go ====================
+
+package http
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/TheTeaToper/OTUS/project/internal/app"
+)
+
+type Server struct {
+	service *app.AntibruteforceService
+	mux     *http.ServeMux
+}
+
+func NewServer(service *app.AntibruteforceService) *Server {
+	server := &Server{
+		service: service,
+		mux:     http.NewServeMux(),
+	}
+	server.mux.HandleFunc("POST /api/v1/blacklist", server.handleAddToBlacklist)
+	server.mux.HandleFunc("DELETE /api/v1/blacklist", server.handleRemoveFromBlacklist)
+
+	server.mux.HandleFunc("POST /api/v1/whitelist", server.handleAddToWhitelist)
+	server.mux.HandleFunc("DELETE /api/v1/whitelist", server.handleRemoveFromWhitelist)
+
+	server.mux.HandleFunc("POST /api/v1/auth/validate", server.handleValidateAuthorization)
+	server.mux.HandleFunc("POST /api/v1/buckets/reset", server.handleResetBuckets)
+
+	return server
+}
+
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mux.ServeHTTP(w, r)
+}
+
+func (s *Server) handleAddToBlacklist(w http.ResponseWriter, r *http.Request) {
+	s.modifyList(w, r, s.service.AddToBlacklist)
+}
+
+func (s *Server) handleRemoveFromBlacklist(w http.ResponseWriter, r *http.Request) {
+	s.modifyList(w, r, s.service.RemoveFromBlacklist)
+}
+
+func (s *Server) handleAddToWhitelist(w http.ResponseWriter, r *http.Request) {
+	s.modifyList(w, r, s.service.AddToWhitelist)
+}
+
+func (s *Server) handleRemoveFromWhitelist(w http.ResponseWriter, r *http.Request) {
+	s.modifyList(w, r, s.service.RemoveFromWhitelist)
+}
+
+func (s *Server) handleValidateAuthorization(w http.ResponseWriter, r *http.Request) {
+	var request AuthRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		s.respondWithError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	if request.Login == "" || request.Password == "" || request.IP == "" {
+		s.respondWithError(w, http.StatusBadRequest, "login, password and ip are required")
+		return
+	}
+
+	ok := s.service.ValidateAuthorization(request.Login, request.Password, request.IP)
+	s.respondWithJSON(w, http.StatusOK, AuthResponse{OK: ok})
+}
+
+func (s *Server) handleResetBuckets(w http.ResponseWriter, r *http.Request) {
+	var req ResetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.respondWithError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	if req.Login == "" || req.IP == "" {
+		s.respondWithError(w, http.StatusBadRequest, "login and ip are required")
+		return
+	}
+
+	s.service.ResetBuckets(req.Login, req.IP)
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) modifyList(w http.ResponseWriter, r *http.Request, action func(string) error) {
+	var req CidrRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.respondWithError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	if err := action(req.Subnet); err != nil {
+		s.respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) respondWithError(w http.ResponseWriter, code int, msg string) {
+	s.respondWithJSON(w, code, ErrorResponse{Error: msg})
+}
+
+func (s *Server) respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	response, _ := json.Marshal(payload)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_, _ = w.Write(response)
+}
+
+==================== FILE: ./internal/server/http/server_test.go ====================
+
+package http
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/TheTeaToper/OTUS/project/internal/app"
+)
+
+func TestHTTP_ValidateAuth(t *testing.T) {
+	// Создаем сервис с жесткими лимитами: 1 запрос для логина/пароля/IP
+	cfg := app.Config{LoginLimit: 1, PasswordLimit: 1, IpLimit: 1}
+	service := app.NewAntibruteforceService(cfg, time.Minute*10)
+	server := NewServer(service)
+
+	// Подготавливаем тестовый запрос
+	reqBody, _ := json.Marshal(AuthRequest{
+		Login:    "admin",
+		Password: "password123",
+		IP:       "192.1.1.5",
+	})
+
+	// --- ПЕРВЫЙ ЗАПРОС (Должен быть OK=true) ---
+	req1 := httptest.NewRequest("POST", "/api/v1/auth/validate", bytes.NewBuffer(reqBody))
+	w1 := httptest.NewRecorder()
+	server.ServeHTTP(w1, req1)
+
+	if w1.Code != http.StatusOK {
+		t.Fatalf("Ожидался статус 200, получен %d", w1.Code)
+	}
+
+	var resp1 AuthResponse
+	_ = json.NewDecoder(w1.Body).Decode(&resp1)
+	if !resp1.OK {
+		t.Error("Первая попытка авторизации должна возвращать ok=true")
+	}
+
+	// --- ВТОРОЙ ЗАПРОС ПОДРЯД (Должен быть OK=false, превышен лимит) ---
+	req2 := httptest.NewRequest("POST", "/api/v1/auth/validate", bytes.NewBuffer(reqBody))
+	w2 := httptest.NewRecorder()
+	server.ServeHTTP(w2, req2)
+
+	var resp2 AuthResponse
+	_ = json.NewDecoder(w2.Body).Decode(&resp2)
+	if resp2.OK {
+		t.Error("Вторая попытка должна возвращать ok=false (bruteforce)")
+	}
+
+	// --- ТРЕТИЙ ЗАПРОС ПОДРЯД (Должен быть OK=false, превышен лимит 2) ---
+	req3 := httptest.NewRequest("POST", "/api/v1/auth/validate", bytes.NewBuffer(reqBody))
+	w3 := httptest.NewRecorder()
+	server.ServeHTTP(w3, req3)
+
+	var resp3 AuthResponse
+	_ = json.NewDecoder(w3.Body).Decode(&resp3)
+	if resp3.OK {
+		t.Error("Третья попытка должна возвращать ok=false (bruteforce)")
+	}
+}
+
+==================== FILE: ./internal/server/http/dto.go ====================
+
+package http
+
+// представляет запрос на проверку попытки авторизации
+type AuthRequest struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+	IP       string `json:"ip"`
+}
+
+// представляет ответ на проверку авторизации
+type AuthResponse struct {
+	OK bool `json:"ok"`
+}
+
+// представляет запрос на сброс бакета
+type ResetRequest struct {
+	Login string `json:"login"`
+	IP    string `json:"ip"`
+}
+
+// представляет запрос на добавление/удаление подсети в black/white-списки
+type CidrRequest struct {
+	Subnet string `json:"subnet"`
+}
+
+// возвращает стандартную ошибку в формате JSON
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+==================== FILE: ./internal/subnets/subnets.go ====================
+
+package subnets
+
+import (
+	"fmt"
+	"net"
+	"sync"
+)
+
+type Subnets struct {
+	mutex  sync.RWMutex
+	ipnets map[string]*net.IPNet
+}
+
+func NewSubnets() *Subnets {
+	return &Subnets{
+		ipnets: make(map[string]*net.IPNet),
+	}
+}
+
+func (s *Subnets) Add(cidr string) error {
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return fmt.Errorf("Invalid CIDR: %w", err)
+	}
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.ipnets[ipNet.String()] = ipNet
+	return nil
+}
+
+func (s *Subnets) Delete(cidr string) error {
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return fmt.Errorf("Invalid CIDR: %w", err)
+	}
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	delete(s.ipnets, ipNet.String())
+	return nil
+}
+
+func (s *Subnets) Contains(ipStr string) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	for _, ipnet := range s.ipnets {
+		if ipnet.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Subnets) ToString() []string {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	result := make([]string, 0, len(s.ipnets))
+	for _, ipnet := range s.ipnets {
+		result = append(result, ipnet.String())
+	}
+	return result
+}
+
+==================== FILE: ./internal/subnets/subnets_test.go ====================
+
+package subnets
+
+import "testing"
+
+func TestIPList_AddAndContains(t *testing.T) {
+	list := NewSubnets()
+
+	// Из ТЗ: 192.1.1.0/25 — это диапазон от 192.1.1.0 до 192.1.1.127
+	err := list.Add("192.1.1.0/25")
+	if err != nil {
+		t.Fatalf("Не удалось добавить подсеть: %v", err)
+	}
+
+	// Тестируем IP внутри подсети
+	if !list.Contains("192.1.1.50") {
+		t.Error("IP 192.1.1.50 должен входить в подсеть 192.1.1.0/25")
+	}
+	if !list.Contains("192.1.1.125") {
+		t.Error("IP 192.1.1.125 должен входить в подсеть 192.1.1.0/25")
+	}
+
+	// Тестируем IP вне подсети (начиная со 128 маска /25 уже не покрывает)
+	if list.Contains("192.1.1.130") {
+		t.Error("IP 192.1.1.130 НЕ должен входить в подсеть 192.1.1.0/25")
+	}
+	if list.Contains("10.0.0.1") {
+		t.Error("IP 10.0.0.1 НЕ должен входить в подсеть 192.1.1.0/25")
+	}
+}
+
+func TestIPList_Delete(t *testing.T) {
+	list := NewSubnets()
+	cidr := "10.0.0.0/24"
+
+	_ = list.Add(cidr)
+	if !list.Contains("10.0.0.5") {
+		t.Fatal("IP должен быть в списке")
+	}
+
+	// Удаляем подсеть
+	err := list.Delete(cidr)
+	if err != nil {
+		t.Fatalf("Ошибка удаления: %v", err)
+	}
+
+	if list.Contains("10.0.0.5") {
+		t.Error("IP не должен определяться после удаления подсети")
+	}
+}
+
+func TestIPList_InvalidCIDR(t *testing.T) {
+	list := NewSubnets()
+
+	// Передаем некорректный формат строки
+	err := list.Add("not-an-ip-or-cidr")
+	if err == nil {
+		t.Error("Ожидалась ошибка для некорректного формата CIDR")
+	}
+}
+
+==================== FILE: ./README.md ====================
+
+# ТЗ на разработку сервиса "Анти-брутфорс"
+
+## Общее описание
+Сервис предназначен для борьбы с подбором паролей при авторизации в какой-либо системе.
+
+Сервис вызывается перед авторизацией пользователя и может либо разрешить, либо заблокировать попытку.
+
+Предполагается, что сервис используется только для server-server, т.е. скрыт от конечного пользователя.
+
+## Алгоритм работы
+Сервис ограничивает частоту попыток авторизации для различных комбинаций параметров, например:
+* не более N = 10 попыток в минуту для данного логина.
+* не более M = 100 попыток в минуту для данного пароля (защита от обратного brute-force).
+* не более K = 1000 попыток в минуту для данного IP (число большое, т.к. NAT).
+
+Для подсчета и ограничения частоты запросов, можно использовать например алгоритм leaky bucket.
+Или иные аналогичные: https://en.wikipedia.org/wiki/Rate_limiting
+
+Причем сервис будет поддерживать множество bucket-ов, по одному на каждый логин/пароль/ip.
+
+Bucket-ы можно хранить:
+* в памяти (в таком случае нужно продумать удаление неактивных bucket-ов, чтобы избежать утечек памяти).
+* во внешнем хранилище (например redis или СУБД, в таком случае нужно продумать производительность).
+
+White/black листы содержат списки адресов сетей, которые обрабатываются более простым способом:
+* Если входящий IP в whitelist, то сервис безусловно разрешает авторизацию (ok=true);
+* Если - в blacklist, то отклоняет (ok=false).
+
+## Архитектура
+Микросервис состоит из API, базы данных для хранения настроек и black/white списков.
+Опционально - хранилище для bucket'ов. Сервис должен предоставлять GRPC **или** REST API.
+
+## Описание методов API
+
+### Попытка авторизации
+Запрос:
+* login
+* password
+* ip
+
+Ответ:
+* ok (true/false) - сервис должен возвращать ok=true, если считает что запрос нормальный 
+и ok=false, если считает что происходит bruteforce.
+
+### Сброс bucket
+Должен очистить bucket-ы соответствующие переданным login и ip.
+* login
+* ip
+
+### Добавление IP в blacklist
+* подсеть (IP + маска)
+
+### Удаление IP из blacklist
+* подсеть (IP + маска)
+
+### Добавление IP в whitelist
+* подсеть (IP + маска)
+
+### Удаление IP из whitelist
+* подсеть (IP + маска)
+
+---
+
+- Достаточно IPv4
+- Пример подсети: 192.1.1.0/25 - представляет собой адрес 192.1.1.0 с маской 255.255.255.128
+- Во время работы сервиса при поступлении очередного IP мы проходимся по подсетям в черных и белых списках и вычисляем, принадлежит ли IP одной из них.
+
+---
+
+## Конфигурация
+Основные параметры конфигурации: N, M, K - лимиты по достижению которых, сервис считает попытку брутфорсом.
+
+## Command-Line интерфейс
+Необходимо так же разработать command-line интерфейс для ручного администрирования сервиса.
+Через CLI должна быть возможность вызвать сброс бакета и управлять whitelist/blacklist-ом.
+CLI может работать через GRPC/HTTP интерфейс.
+
+## Развертывание
+Развертывание микросервиса должно осуществляться командой `make run` (внутри `docker compose up`)
+в директории с проектом.
+
+## Тестирование
+Рекомендуется выделить модуль обработки одного bucket и протестировать его с помощью unit-тестов.
+
+Так же необходимо написать интеграционные тесты, проверяющие все вызовы API.
+
+## Разбалловка
+Максимум - **15 баллов**
+(при условии выполнения [обязательных требований](./README.md)):
+
+* Реализован алгоритм rate limit - 2 балла.
+* Реализованы фичи whitelist/blacklist - 2 балла.
+* Реализовано API сервиса - 2 балла.
+* Реализован CLI-интерфейс - 1 балла.
+* Написаны юнит-тесты - 1 балл.
+* Написаны интеграционные тесты - 2 балла.
+* Тесты адекватны и полностью покрывают функциональность - 1 балл.
+* Проект возможно собрать через `make build`, запустить через `make run`
+  и протестировать через `make test` - 1 балл.
+* Понятность и чистота кода - до 3 баллов.
+
+#### Зачёт от 10 баллов
+
+==================== FILE: ./configs/config.yaml ====================
+
+server:
+  port: ":8080"
+
+limits:
+  login_limit: 10       # N
+  password_limit: 100   # M
+  ip_limit: 1000        # K
+  bucket_ttl: 10m       # 10 минут
