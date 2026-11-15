@@ -1,0 +1,8 @@
+server:
+  port: ":8080"
+
+limits:
+  login_limit: 10       # N
+  password_limit: 100   # M
+  ip_limit: 1000        # K
+  bucket_ttl: 10m       # 10 минут
