@@ -10,10 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	httpserver "github.com/TheTeaToper/OTUS/project/internal/server/http"
-
 	"github.com/TheTeaToper/OTUS/project/internal/app"
 	"github.com/TheTeaToper/OTUS/project/internal/config"
+	httpserver "github.com/TheTeaToper/OTUS/project/internal/server/http"
 )
 
 func main() {
@@ -66,8 +65,10 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Ошибка при плавном завершении работы сервера: %v", err)
+		cancel()
+		log.Printf("Ошибка при плавном завершении работы сервера: %v", err)
 	}
+	cancel()
 
 	log.Println("Сервис Анти-брутфорс успешно остановлен.")
 }

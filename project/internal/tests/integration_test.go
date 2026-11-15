@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -10,7 +11,7 @@ import (
 
 const baseURL = "http://localhost:8080/api/v1"
 
-// Структуры DTO для отправки запросов
+// Структуры DTO для отправки запросов.
 type AuthRequest struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
@@ -33,10 +34,17 @@ type ResetRequest struct {
 func TestIntegration_AntiBruteForce(t *testing.T) {
 	// Перед запуском тестов проверяем, доступен ли сервер
 	client := &http.Client{Timeout: 2 * time.Second}
-	_, err := client.Get(baseURL + "/auth/validate")
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/auth/validate", nil)
 	if err != nil {
-		t.Skip("Пропуск интеграционных тестов: сервер Анти-брутфорс не запущен на порту 8080. Запустите 'make run' перед тестированием.")
+		t.Fatalf("Ошибка создания тестового запроса: %v", err)
 	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Skip("Пропуск интеграционных тестов: сервер Анти-брутфорс не запущен на порту 8080." +
+			" Запустите 'make run' перед тестированием.")
+	}
+	_ = resp.Body.Close()
 
 	// Данные для тестов
 	testLogin := "integration_user"
@@ -132,8 +140,10 @@ func TestIntegration_AntiBruteForce(t *testing.T) {
 // --- Хелперы для выполнения HTTP запросов к API ---
 
 func validateAuth(t *testing.T, client *http.Client, login, password, ip string) AuthResponse {
+	t.Helper()
+
 	body, _ := json.Marshal(AuthRequest{Login: login, Password: password, IP: ip})
-	req, _ := http.NewRequest("POST", baseURL+"/auth/validate", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", baseURL+"/auth/validate", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -152,8 +162,10 @@ func validateAuth(t *testing.T, client *http.Client, login, password, ip string)
 }
 
 func modifyList(t *testing.T, client *http.Client, method, endpoint, subnet string) {
+	t.Helper()
+
 	body, _ := json.Marshal(CidrRequest{Subnet: subnet})
-	req, _ := http.NewRequest(method, baseURL+endpoint, bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), method, baseURL+endpoint, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -168,8 +180,10 @@ func modifyList(t *testing.T, client *http.Client, method, endpoint, subnet stri
 }
 
 func resetBuckets(t *testing.T, client *http.Client, login, ip string) {
+	t.Helper()
+
 	body, _ := json.Marshal(ResetRequest{Login: login, IP: ip})
-	req, _ := http.NewRequest("POST", baseURL+"/buckets/reset", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", baseURL+"/buckets/reset", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)

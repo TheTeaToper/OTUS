@@ -52,12 +52,12 @@ func (s *Server) handleRemoveFromWhitelist(w http.ResponseWriter, r *http.Reques
 func (s *Server) handleValidateAuthorization(w http.ResponseWriter, r *http.Request) {
 	var request AuthRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		s.respondWithError(w, http.StatusBadRequest, "invalid json body")
+		s.respondWithError(w, "invalid json body")
 		return
 	}
 
 	if request.Login == "" || request.Password == "" || request.IP == "" {
-		s.respondWithError(w, http.StatusBadRequest, "login, password and ip are required")
+		s.respondWithError(w, "login, password and ip are required")
 		return
 	}
 
@@ -68,12 +68,12 @@ func (s *Server) handleValidateAuthorization(w http.ResponseWriter, r *http.Requ
 func (s *Server) handleResetBuckets(w http.ResponseWriter, r *http.Request) {
 	var req ResetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.respondWithError(w, http.StatusBadRequest, "invalid json body")
+		s.respondWithError(w, "invalid json body")
 		return
 	}
 
 	if req.Login == "" || req.IP == "" {
-		s.respondWithError(w, http.StatusBadRequest, "login and ip are required")
+		s.respondWithError(w, "login and ip are required")
 		return
 	}
 
@@ -84,20 +84,20 @@ func (s *Server) handleResetBuckets(w http.ResponseWriter, r *http.Request) {
 func (s *Server) modifyList(w http.ResponseWriter, r *http.Request, action func(string) error) {
 	var req CidrRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.respondWithError(w, http.StatusBadRequest, "invalid json body")
+		s.respondWithError(w, "invalid json body")
 		return
 	}
 
 	if err := action(req.Subnet); err != nil {
-		s.respondWithError(w, http.StatusBadRequest, err.Error())
+		s.respondWithError(w, err.Error())
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) respondWithError(w http.ResponseWriter, code int, msg string) {
-	s.respondWithJSON(w, code, ErrorResponse{Error: msg})
+func (s *Server) respondWithError(w http.ResponseWriter, msg string) {
+	s.respondWithJSON(w, http.StatusBadRequest, ErrorResponse{Error: msg})
 }
 
 func (s *Server) respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {

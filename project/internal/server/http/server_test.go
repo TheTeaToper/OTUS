@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -25,7 +26,7 @@ func TestHTTP_ValidateAuth(t *testing.T) {
 	})
 
 	// --- ПЕРВЫЙ ЗАПРОС (Должен быть OK=true) ---
-	req1 := httptest.NewRequest("POST", "/api/v1/auth/validate", bytes.NewBuffer(reqBody))
+	req1 := httptest.NewRequestWithContext(context.Background(), "POST", "/api/v1/auth/validate", bytes.NewBuffer(reqBody))
 	w1 := httptest.NewRecorder()
 	server.ServeHTTP(w1, req1)
 
@@ -40,7 +41,7 @@ func TestHTTP_ValidateAuth(t *testing.T) {
 	}
 
 	// --- ВТОРОЙ ЗАПРОС ПОДРЯД (Должен быть OK=false, превышен лимит) ---
-	req2 := httptest.NewRequest("POST", "/api/v1/auth/validate", bytes.NewBuffer(reqBody))
+	req2 := httptest.NewRequestWithContext(context.Background(), "POST", "/api/v1/auth/validate", bytes.NewBuffer(reqBody))
 	w2 := httptest.NewRecorder()
 	server.ServeHTTP(w2, req2)
 
@@ -51,7 +52,7 @@ func TestHTTP_ValidateAuth(t *testing.T) {
 	}
 
 	// --- ТРЕТИЙ ЗАПРОС ПОДРЯД (Должен быть OK=false, превышен лимит 2) ---
-	req3 := httptest.NewRequest("POST", "/api/v1/auth/validate", bytes.NewBuffer(reqBody))
+	req3 := httptest.NewRequestWithContext(context.Background(), "POST", "/api/v1/auth/validate", bytes.NewBuffer(reqBody))
 	w3 := httptest.NewRecorder()
 	server.ServeHTTP(w3, req3)
 

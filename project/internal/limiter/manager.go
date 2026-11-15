@@ -8,7 +8,7 @@ import (
 type Manager struct {
 	mutex   sync.RWMutex
 	buckets map[string]*Bucket
-	// Время жизни неактивного бакета (например, 5-10 минут)
+	// Время жизни неактивного бакета (например, 5-10 минут).
 	ttl         time.Duration
 	stopChannel chan struct{}
 }
@@ -39,7 +39,7 @@ func (m *Manager) GetBucket(key string, limit int) *Bucket {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	// Двойная проверка на случай race condition
+	// Двойная проверка на случай race condition.
 	if bucket, exists = m.buckets[key]; exists {
 		return bucket
 	}
@@ -49,7 +49,7 @@ func (m *Manager) GetBucket(key string, limit int) *Bucket {
 	return bucket
 }
 
-// ResetKey удаляет/сбрасывает бакеты для конкретного ключа
+// ResetKey удаляет/сбрасывает бакеты для конкретного ключа.
 func (m *Manager) ResetKey(key string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -57,7 +57,7 @@ func (m *Manager) ResetKey(key string) {
 	delete(m.buckets, key)
 }
 
-// Останов фоновой очистки неактивных бакетов
+// Останов фоновой очистки неактивных бакетов.
 func (m *Manager) Stop() {
 	select {
 	case <-m.stopChannel:
@@ -67,7 +67,7 @@ func (m *Manager) Stop() {
 }
 
 func (m *Manager) cleanupLoop() {
-	// Проверка неактивных бакетов с интервалом половины TTL (но не реже 1 раза в секунду)
+	// Проверка неактивных бакетов с интервалом половины TTL (но не реже 1 раза в секунду).
 	interval := m.ttl / 2
 	if interval < time.Second {
 		interval = time.Second

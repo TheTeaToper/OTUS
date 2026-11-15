@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,7 +11,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const defaultBaseURL = "http://localhost:8080/api/v1"
+const (
+	defaultBaseURL = "http://localhost:8080/api/v1"
+	keySubnet      = "subnet"
+)
 
 var (
 	baseURL string
@@ -75,28 +79,28 @@ func runReset(cmd *cobra.Command, args []string) {
 }
 
 func runAddWhitelist(cmd *cobra.Command, args []string) {
-	body, _ := json.Marshal(map[string]string{"subnet": subnet})
+	body, _ := json.Marshal(map[string]string{keySubnet: subnet})
 	sendRequest(http.MethodPost, baseURL+"/whitelist", body, fmt.Sprintf("Подсеть %s добавлена в whitelist", subnet))
 }
 
 func runRemoveWhitelist(cmd *cobra.Command, args []string) {
-	body, _ := json.Marshal(map[string]string{"subnet": subnet})
+	body, _ := json.Marshal(map[string]string{keySubnet: subnet})
 	sendRequest(http.MethodDelete, baseURL+"/whitelist", body, fmt.Sprintf("Подсеть %s удалена из whitelist", subnet))
 }
 
 func runAddBlacklist(cmd *cobra.Command, args []string) {
-	body, _ := json.Marshal(map[string]string{"subnet": subnet})
+	body, _ := json.Marshal(map[string]string{keySubnet: subnet})
 	sendRequest(http.MethodPost, baseURL+"/blacklist", body, fmt.Sprintf("Подсеть %s добавлена в blacklist", subnet))
 }
 
 func runRemoveBlacklist(cmd *cobra.Command, args []string) {
-	body, _ := json.Marshal(map[string]string{"subnet": subnet})
+	body, _ := json.Marshal(map[string]string{keySubnet: subnet})
 	sendRequest(http.MethodDelete, baseURL+"/blacklist", body, fmt.Sprintf("Подсеть %s удалена из blacklist", subnet))
 }
 
-// Вспомогательная функция отправки запросов на сервер
+// Вспомогательная функция отправки запросов на сервер.
 func sendRequest(method, url string, body []byte, successMsg string) {
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(context.Background(), method, url, bytes.NewBuffer(body))
 	if err != nil {
 		fmt.Printf("❌ Ошибка создания запроса: %v\n", err)
 		return

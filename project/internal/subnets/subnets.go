@@ -20,7 +20,7 @@ func NewSubnets() *Subnets {
 func (s *Subnets) Add(cidr string) error {
 	_, ipNet, err := net.ParseCIDR(cidr)
 	if err != nil {
-		return fmt.Errorf("Invalid CIDR: %w", err)
+		return fmt.Errorf("invalid CIDR: %w", err)
 	}
 
 	s.mutex.Lock()
@@ -33,7 +33,7 @@ func (s *Subnets) Add(cidr string) error {
 func (s *Subnets) Delete(cidr string) error {
 	_, ipNet, err := net.ParseCIDR(cidr)
 	if err != nil {
-		return fmt.Errorf("Invalid CIDR: %w", err)
+		return fmt.Errorf("invalid CIDR: %w", err)
 	}
 
 	s.mutex.Lock()

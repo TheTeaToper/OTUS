@@ -56,13 +56,13 @@ func (s *AntibruteforceService) ValidateAuthorization(login, password, ip string
 	return loginAllowed && passwordAllowed && ipAllowed
 }
 
-// Сброс бакетов для логина и IP
+// Сброс бакетов для логина и IP.
 func (s *AntibruteforceService) ResetBuckets(login, ip string) {
 	s.loginsManager.ResetKey(login)
 	s.ipsManager.ResetKey(ip)
 }
 
-// Методы-прослойки для управления списками (вызываются из API/CLI)
+// Методы-прослойки для управления списками (вызываются из API/CLI).
 func (s *AntibruteforceService) AddToWhitelist(cidr string) error { return s.whiteList.Add(cidr) }
 
 func (s *AntibruteforceService) RemoveFromWhitelist(cidr string) error {
